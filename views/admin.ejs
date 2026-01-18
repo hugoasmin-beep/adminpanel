@@ -1,96 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
     <title>Admin ProxyFlow</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #eee; padding: 20px; }
-        .stats { display: flex; gap: 20px; margin-bottom: 30px; }
-        .card { background: #1e1e1e; padding: 20px; border-radius: 10px; flex: 1; border: 1px solid #333; text-align: center; }
-        .card h3 { margin: 0; color: #888; font-size: 14px; text-transform: uppercase; }
-        .card p { font-size: 32px; font-weight: bold; margin: 10px 0; color: #fff; }
-        table { width: 100%; border-collapse: collapse; background: #1e1e1e; border-radius: 10px; overflow: hidden; margin-bottom: 30px; }
-        th { background: #252525; padding: 15px; text-align: left; color: #888; text-transform: uppercase; font-size: 12px; }
-        td { padding: 15px; border-bottom: 1px solid #333; }
-        input { background: #2a2a2a; border: 1px solid #444; color: white; padding: 8px; border-radius: 5px; width: 70px; }
-        .btn { padding: 8px 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .btn-deliver { background: #27ae60; color: white; }
-        .btn-credit { background: #2980b9; color: white; }
-        .btn-debit { background: #e67e22; color: white; }
-        .btn:hover { opacity: 0.8; }
+        body { font-family: sans-serif; background: #121212; color: white; padding: 20px; }
+        .header { display: flex; justify-content: space-between; }
+        .stats { display: flex; gap: 20px; margin: 20px 0; }
+        .card { background: #1e1e1e; padding: 15px; border-radius: 8px; flex: 1; border: 1px solid #333; text-align: center; }
+        table { width: 100%; border-collapse: collapse; background: #1e1e1e; }
+        th, td { padding: 12px; border-bottom: 1px solid #333; text-align: left; }
+        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
+        .lang-btn { color: white; text-decoration: none; padding: 5px; border: 1px solid #444; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <h1>🚀 ProxyFlow Admin Control</h1>
+    <div class="header">
+        <h1><%= t.title %></h1>
+        <div>
+            <a href="?lang=fr" class="lang-btn">🇫🇷 FR</a>
+            <a href="?lang=en" class="lang-btn">🇺🇸 EN</a>
+        </div>
+    </div>
     
     <div class="stats">
-        <div class="card"><h3>👥 Users</h3><p><%= stats.totalUsers %></p></div>
-        <div class="card"><h3>🛒 Ventes</h3><p><%= stats.totalSold %></p></div>
-        <div class="card"><h3>💰 Gains</h3><p><%= stats.totalEarnings %> $</p></div>
+        <div class="card"><h3><%= t.st_u %></h3><p><%= stats.totalUsers %></p></div>
+        <div class="card"><h3><%= t.st_s %></h3><p><%= stats.totalSold %></p></div>
+        <div class="card"><h3><%= t.st_g %></h3><p><%= stats.totalEarnings %>$</p></div>
     </div>
 
-    <h2>📦 Commandes en attente</h2>
+    <h2><%= t.t_pend %></h2>
     <table>
-        <thead>
+        <tr><th><%= t.c_pay %></th><th>ISP</th><th>Action</th></tr>
+        <% pendingOrders.forEach(o => { %>
             <tr>
-                <th>ID Paiement</th>
-                <th>ISP</th>
-                <th>Action (Livrer Proxy)</th>
+                <td><%= o.paymentRef %></td>
+                <td><%= o.provider %></td>
+                <td>
+                    <form action="/admin/deliver" method="POST">
+                        <input type="hidden" name="orderId" value="<%= o.orderId %>">
+                        <input type="text" name="proxyData" placeholder="IP:PORT:USER:PASS" required>
+                        <button class="btn" style="background: #27ae60;"><%= t.b_del %></button>
+                    </form>
+                </td>
             </tr>
-        </thead>
-        <tbody>
-            <% if (pendingOrders.length === 0) { %>
-                <tr><td colspan="3" style="text-align: center;">Aucune commande en attente.</td></tr>
-            <% } else { %>
-                <% pendingOrders.forEach(function(o) { %>
-                    <tr>
-                        <td style="color: #f1c40f; font-weight: bold;"><%= o.paymentRef %></td>
-                        <td><%= o.provider %></td>
-                        <td>
-                            <form action="/admin/deliver" method="POST" style="display: flex; gap: 10px;">
-                                <input type="hidden" name="orderId" value="<%= o.orderId %>">
-                                <input type="text" name="proxyData" placeholder="IP:PORT:USER:PASS" required style="width: 200px;">
-                                <button type="submit" class="btn btn-deliver">Livrer ✅</button>
-                            </form>
-                        </td>
-                    </tr>
-                <% }); %>
-            <% } %>
-        </tbody>
+        <% }); %>
     </table>
 
-    <h2>👥 Liste des Utilisateurs</h2>
+    <h2><%= t.t_user %></h2>
     <table>
-        <thead>
+        <tr><th>Email</th><th><%= t.c_bal %></th><th>Actions</th></tr>
+        <% users.forEach(u => { %>
             <tr>
-                <th>Email</th>
-                <th>Solde Actuel</th>
-                <th>Actions</th>
+                <td><%= u.email %></td>
+                <td><%= u.balance %>$</td>
+                <td>
+                    <form action="/admin/add-balance" method="POST" style="display:inline;">
+                        <input type="hidden" name="psid" value="<%= u.psid %>">
+                        <input type="number" name="amount" placeholder="+" style="width:50px;">
+                        <button class="btn" style="background:#2980b9;"><%= t.b_cre %></button>
+                    </form>
+                    <form action="/admin/sub-balance" method="POST" style="display:inline;">
+                        <input type="hidden" name="psid" value="<%= u.psid %>">
+                        <input type="number" name="amount" placeholder="-" style="width:50px;">
+                        <button class="btn" style="background:#e67e22;"><%= t.b_deb %></button>
+                    </form>
+                </td>
             </tr>
-        </thead>
-        <tbody>
-            <% users.forEach(function(u) { %>
-                <tr>
-                    <td><%= u.email || 'Sans Email' %></td>
-                    <td style="color: #2ecc71; font-weight: bold;"><%= u.balance %> $</td>
-                    <td>
-                        <div style="display: flex; gap: 15px;">
-                            <form action="/admin/add-balance" method="POST">
-                                <input type="hidden" name="psid" value="<%= u.psid %>">
-                                <input type="number" name="amount" placeholder="+" step="0.01" required>
-                                <button type="submit" class="btn btn-credit">Créditer</button>
-                            </form>
-                            <form action="/admin/sub-balance" method="POST">
-                                <input type="hidden" name="psid" value="<%= u.psid %>">
-                                <input type="number" name="amount" placeholder="-" step="0.01" required>
-                                <button type="submit" class="btn btn-debit">Débiter</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            <% }); %>
-        </tbody>
+        <% }); %>
     </table>
-
 </body>
 </html>
