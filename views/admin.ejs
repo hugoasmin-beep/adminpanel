@@ -1,72 +1,101 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>ProxyFlow Admin</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProxyFlow Admin | 0 Fraud Score</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; padding: 20px; }
-        .card { background: #1e1e1e; padding: 15px; border-radius: 8px; flex: 1; border: 1px solid #333; text-align: center; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #1e1e1e; }
-        th, td { padding: 12px; border-bottom: 1px solid #333; text-align: left; }
-        .btn { padding: 8px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: bold; }
-        input { background: #2a2a2a; border: 1px solid #444; color: white; padding: 5px; border-radius: 4px; }
+        .container { max-width: 1000px; margin: auto; }
+        .stats { display: flex; gap: 20px; margin-bottom: 30px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 10px; flex: 1; border: 1px solid #333; }
+        h1, h2 { color: #2ecc71; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border: 1px solid #333; text-align: left; }
+        th { background: #2ecc71; color: black; }
+        textarea { width: 100%; height: 80px; background: #222; color: #00ff00; border: 1px solid #444; padding: 5px; }
+        button { background: #2ecc71; color: black; border: none; padding: 10px 15px; cursor: pointer; font-weight: bold; border-radius: 5px; }
+        .btn-free { background: #f1c40f; color: black; margin-top: 10px; }
+        .status-manuel { color: #e74c3c; font-weight: bold; }
+        .status-solde { color: #3498db; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div style="display: flex; justify-content: space-between;">
-        <h1><%= t.title %></h1>
-        <div>
-            <a href="?lang=fr" style="color:white; margin-right: 10px;">🇫🇷 FR</a>
-            <a href="?lang=en" style="color:white;">🇺🇸 EN</a>
+    <div class="container">
+        <h1>🚀 ProxyFlow Admin Dashboard</h1>
+
+        <div class="stats">
+            <div class="card"><h3>Clients</h3><p><%= users.length %></p></div>
+            <div class="card"><h3>Commandes</h3><p><%= stats.s %></p></div>
+            <div class="card"><h3>Gains Totaux</h3><p>$<%= stats.g %></p></div>
         </div>
+
+        <div class="card" style="margin-bottom: 30px; border: 1px solid #f1c40f;">
+            <h2>🎁 Update Free Proxies</h2>
+            <p>Ces proxies seront affichés quand l'utilisateur cliquera sur "Free Proxy".</p>
+            <form action="/admin/update-free" method="POST">
+                <textarea name="freeContent" placeholder="Colle ici les proxies gratuits (ex: 1.1.1.1:8080)"></textarea>
+                <button type="submit" class="btn-free">Mettre à jour les Free Proxies</button>
+            </form>
+        </div>
+
+        <h2>⏳ Commandes en attente (0 Fraud Score)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Produit</th>
+                    <th>Prix</th>
+                    <th>Type Paiement</th>
+                    <th>Livraison</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% pending.forEach(order => { %>
+                    <tr>
+                        <td><%= order.psid %></td>
+                        <td style="color:#f1c40f;"><%= order.provider %></td>
+                        <td>$<%= order.price.toFixed(2) %></td>
+                        <td class="<%= order.status.includes('Manuel') ? 'status-manuel' : 'status-solde' %>">
+                            <%= order.status %>
+                        </td>
+                        <td>
+                            <form action="/admin/deliver" method="POST">
+                                <input type="hidden" name="orderId" value="<%= order.orderId %>">
+                                <textarea name="proxyData" placeholder="Format: IP:PORT:USER:PASS" required></textarea>
+                                <button type="submit">LIVRER ✅</button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+
+        <h2 style="margin-top: 50px;">👤 Liste des Clients</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Solde</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% users.forEach(u => { %>
+                    <tr>
+                        <td><%= u.email %></td>
+                        <td>$<%= u.balance.toFixed(2) %></td>
+                        <td>
+                            <form action="/admin/add-balance" method="POST" style="display:flex; gap:5px;">
+                                <input type="hidden" name="psid" value="<%= u.psid %>">
+                                <input type="number" name="amount" step="0.01" placeholder="Ajouter $" style="width:70px;">
+                                <button type="submit">Ajouter</button>
+                            </form>
+                        </td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
     </div>
-
-    <div style="display: flex; gap: 20px; margin-bottom: 30px;">
-        <div class="card"><h3><%= t.st_u %></h3><p><%= stats.u %></p></div>
-        <div class="card"><h3><%= t.st_s %></h3><p><%= stats.s %></p></div>
-        <div class="card"><h3><%= t.st_g %></h3><p><%= stats.g %>$</p></div>
-    </div>
-
-    <h2>📦 <%= t.t_pend %></h2>
-    <table>
-        <tr><th><%= t.c_pay %></th><th>ISP</th><th>Action</th></tr>
-        <% pendingOrders.forEach(o => { %>
-            <tr>
-                <td><%= o.paymentRef %></td>
-                <td><%= o.provider %> ($<%= o.price %>)</td>
-                <td>
-                    <div style="display: flex; gap: 10px;">
-                        <form action="/admin/deliver" method="POST">
-                            <input type="hidden" name="orderId" value="<%= o.orderId %>">
-                            <input type="text" name="proxyData" placeholder="IP:PORT:USER:PASS" required>
-                            <button class="btn" style="background: #27ae60;"><%= t.b_del %></button>
-                        </form>
-                        <form action="/admin/cancel" method="POST">
-                            <input type="hidden" name="orderId" value="<%= o.orderId %>">
-                            <input type="text" name="reason" placeholder="Reason" style="width: 80px;">
-                            <button class="btn" style="background: #c0392b;"><%= t.b_ref %></button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-        <% }); %>
-    </table>
-
-    <h2>👥 <%= t.t_user %></h2>
-    <table>
-        <tr><th>Email</th><th>Balance</th><th>Action</th></tr>
-        <% users.forEach(u => { %>
-            <tr>
-                <td><%= u.email %></td>
-                <td style="color: #2ecc71;"><%= u.balance %>$</td>
-                <td>
-                    <form action="/admin/add-balance" method="POST">
-                        <input type="hidden" name="psid" value="<%= u.psid %>">
-                        <input type="number" name="amount" placeholder="+" step="0.01" style="width: 60px;">
-                        <button class="btn" style="background: #2980b9;">Créditer</button>
-                    </form>
-                </td>
-            </tr>
-        <% }); %>
-    </table>
 </body>
 </html>
