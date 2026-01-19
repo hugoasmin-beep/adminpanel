@@ -35,11 +35,19 @@ const Settings = mongoose.model('Settings', new mongoose.Schema({
 
 // --- ROUTES ---
 
+// 0. REDIRECTION (Pour éviter le "Cannot GET /")
+app.get('/', (req, res) => res.redirect('/admin/panel'));
+
 // 1. PAGE PRINCIPALE
 app.get('/admin/panel', async (req, res) => {
     try {
         const users = await User.find({ email: { $exists: true } }).sort({ balance: -1 });
-        const rawOrders = await Order.find({ status: { $regex: /PENDING|EN ATTENTE/i } }).sort({ date: -1 });
+        
+        // On cherche tout ce qui n'est pas encore livré (PENDING, WAITING PAYMENT, EN ATTENTE)
+        const rawOrders = await Order.find({ 
+            status: { $in: ['PENDING', 'EN ATTENTE', 'WAITING PAYMENT'] } 
+        }).sort({ date: -1 });
+        
         const deliveredOrders = await Order.find({ status: /LIVRÉ|DELIVERED/i });
 
         const pending = await Promise.all(rawOrders.map(async (order) => {
@@ -62,6 +70,7 @@ app.get('/admin/panel', async (req, res) => {
             } 
         });
     } catch (err) {
+        console.error(err);
         res.status(500).send("Server Error: " + err.message);
     }
 });
@@ -80,7 +89,7 @@ app.post('/admin/deliver', async (req, res) => {
             await axios.post(`https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, {
                 recipient: { id: order.psid },
                 message: { 
-                    text: `✅ ORDER DELIVERED !\n\nProduct: ${order.provider}\nYour Proxies (0 Fraud Score):\n${proxyData}\n\nThank you for choosing ProxyFlow!` 
+                    text: `✅ ORDER DELIVERED !\n\nProduct: ${order.provider}\nYour Proxies:\n${proxyData}\n\nThank you for choosing ProxyFlow!` 
                 }
             });
         }
@@ -90,22 +99,18 @@ app.post('/admin/deliver', async (req, res) => {
     }
 });
 
-// 3. REFUSER LA COMMANDE (Nouveau)
+// 3. REFUSER LA COMMANDE
 app.post('/admin/refuse', async (req, res) => {
     const { orderId } = req.body;
     try {
         const order = await Order.findOne({ orderId });
-        
         if (order) {
-            // Envoyer un message au client pour expliquer le refus
             await axios.post(`https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`, {
                 recipient: { id: order.psid },
                 message: { 
-                    text: `❌ ORDER REFUSED\n\nYour order ${order.orderId} has been declined.\nReason: Payment not received or invalid data.\n\nPlease contact support if you think this is an error.` 
+                    text: `❌ ORDER REFUSED\n\nYour order ${order.orderId} has been declined.\nReason: Payment not received.\n\nPlease contact support.` 
                 }
             });
-
-            // Supprimer la commande de la liste des attentes
             await Order.deleteOne({ orderId });
         }
         res.redirect('/admin/panel');
@@ -137,4 +142,4 @@ app.post('/admin/update-free', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Admin Dashboard Live` ));
+app.listen(PORT, () => console.log(`🚀 Admin Dashboard Live on port ${PORT}`));
