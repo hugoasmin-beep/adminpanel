@@ -465,22 +465,18 @@ app.get('/api/check-username', authMiddleware, async (req, res) => {
 app.post('/api/create-proxy', authMiddleware, async (req, res) => {
   try {
     const { parent_proxy_id, package_id, protocol, duration, username, password, ip_addr } = req.body;
-    
+
+    // Calcul du prix
     let price = 0;
     for (const pkg of Object.values(PRICES)) {
       if (pkg.package_id === parseInt(package_id)) {
         const priceObj = pkg.prices.find(p => p.duration === parseFloat(duration));
-        if (priceObj) {
-          price = priceObj.price;
-          break;
-        }
+        if (priceObj) price = priceObj.price;
       }
     }
+    if (price === 0) return res.status(400).json({ error: 'Prix non trouvé' });
 
-    if (price === 0) {
-      return res.status(400).json({ error: 'Prix non trouvé pour cette configuration' });
-    }
-
+    // ❌ Solde utilisateur insuffisant
     if (req.user.balance < price) {
       return res.status(400).json({ 
         error: 'Solde insuffisant', 
@@ -489,13 +485,8 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       });
     }
 
-    const proxyData = {
-      parent_proxy_id: parseInt(parent_proxy_id),
-      package_id: parseInt(package_id),
-      protocol,
-      duration: parseFloat(duration)
-    };
-
+    // Préparer les données pour l'API externe (compte admin)
+    const proxyData = { parent_proxy_id, package_id, protocol, duration };
     if (username && password) {
       proxyData.username = username;
       proxyData.password = password;
@@ -503,12 +494,21 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyData.ip_addr = ip_addr;
     }
 
-    const apiResponse = await apiRequest('POST', '/proxies', proxyData);
+    // ❌ Achat via compte admin (API_EMAIL)
+    const token = await getAuthToken(); // récupère token avec ton compte admin
+    const apiResponse = await axios.post(`${API_BASE_URL}/proxies`, proxyData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    }).then(r => r.data);
 
+    // Déduction du solde utilisateur
     const balanceBefore = req.user.balance;
     req.user.balance -= price;
     await req.user.save();
 
+    // Enregistrer transaction
     await new Transaction({
       userId: req.user._id,
       type: 'purchase',
@@ -519,11 +519,12 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyDetails: apiResponse
     }).save();
 
+    // Enregistrer proxy acheté
     await new ProxyPurchase({
       userId: req.user._id,
       proxyId: apiResponse.id,
       packageType: package_id === 1 ? 'golden' : 'silver',
-      duration: parseFloat(duration),
+      duration,
       price,
       username: apiResponse.username,
       password: apiResponse.password,
@@ -536,13 +537,12 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     res.json({
       success: true,
       proxy: apiResponse,
-      newBalance: req.user.balance
+      userBalance: req.user.balance // ✅ renvoyer le solde utilisateur après achat
     });
+
   } catch (error) {
     console.error('Erreur create-proxy:', error.response?.data || error.message);
-    res.status(500).json({ 
-      error: error.response?.data?.message || error.message
-    });
+    res.status(500).json({ error: error.response?.data?.message || error.message });
   }
 });
 
