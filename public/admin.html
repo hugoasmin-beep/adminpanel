@@ -5,14 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin - Proxy Shop</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
         .header {
             background: white;
             padding: 20px 30px;
@@ -23,7 +33,12 @@
             justify-content: space-between;
             align-items: center;
         }
-        .header h1 { color: #667eea; font-size: 28px; }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+        }
+
         .logout-btn {
             background: #f44336;
             color: white;
@@ -33,12 +48,14 @@
             cursor: pointer;
             font-size: 14px;
         }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
+
         .stat-card {
             background: white;
             padding: 25px;
@@ -46,20 +63,33 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             text-align: center;
         }
-        .stat-card h3 { color: #666; font-size: 14px; margin-bottom: 10px; }
-        .stat-card .number { font-size: 36px; font-weight: bold; color: #667eea; }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
         .main-panel {
             background: white;
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
+
         .tabs {
             display: flex;
             gap: 10px;
             margin-bottom: 30px;
             border-bottom: 2px solid #f0f0f0;
         }
+
         .tab {
             padding: 12px 24px;
             background: none;
@@ -70,18 +100,26 @@
             border-bottom: 3px solid transparent;
             transition: all 0.3s;
         }
+
         .tab.active {
             color: #667eea;
             border-bottom-color: #667eea;
         }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
 
         .users-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
+
         .users-table th {
             background: #f8f9fa;
             padding: 15px;
@@ -89,19 +127,32 @@
             font-weight: 600;
             color: #333;
         }
+
         .users-table td {
             padding: 15px;
             border-bottom: 1px solid #f0f0f0;
         }
-        .users-table tr:hover { background: #f8f9fa; }
+
+        .users-table tr:hover {
+            background: #f8f9fa;
+        }
+
         .badge {
             padding: 5px 10px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: bold;
         }
-        .badge.admin { background: #ffd700; color: #333; }
-        .badge.user { background: #e3f2fd; color: #1976d2; }
+
+        .badge.admin {
+            background: #ffd700;
+            color: #333;
+        }
+
+        .badge.user {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
 
         .btn {
             padding: 8px 16px;
@@ -112,10 +163,26 @@
             margin: 0 5px;
             transition: all 0.3s;
         }
-        .btn-success { background: #4caf50; color: white; }
-        .btn-danger { background: #f44336; color: white; }
-        .btn-primary { background: #667eea; color: white; }
-        .btn:hover { opacity: 0.8; transform: translateY(-2px); }
+
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
 
         .modal {
             display: none;
@@ -129,7 +196,10 @@
             justify-content: center;
             align-items: center;
         }
-        .modal.active { display: flex; }
+
+        .modal.active {
+            display: flex;
+        }
 
         .modal-content {
             background: white;
@@ -139,15 +209,23 @@
             max-width: 500px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-        .modal-content h2 { margin-bottom: 20px; color: #333; }
 
-        .form-group { margin-bottom: 20px; }
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
         .form-group label {
             display: block;
             margin-bottom: 8px;
             color: #666;
             font-weight: 500;
         }
+
         .form-group input,
         .form-group textarea {
             width: 100%;
@@ -156,6 +234,7 @@
             border-radius: 8px;
             font-size: 14px;
         }
+
         .form-group input:focus,
         .form-group textarea:focus {
             outline: none;
@@ -177,27 +256,32 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
+
         .login-container h1 {
             text-align: center;
             color: #667eea;
             margin-bottom: 30px;
         }
+
         .alert {
             padding: 12px;
             border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
         }
+
         .alert-success {
             background: #d4edda;
             color: #155724;
             border: 1px solid #c3e6cb;
         }
+
         .alert-error {
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+
         .loading {
             text-align: center;
             padding: 40px;
@@ -404,6 +488,11 @@
                             <button class="btn btn-success" onclick="openCreditModal('${user._id}', '${user.email}')">
                                 + Crédit
                             </button>
+                            ${!user.isAdmin ? `
+                                <button class="btn btn-primary" onclick="promoteUser('${user._id}')">
+                                    Promouvoir
+                                </button>
+                            ` : ''}
                         </td>
                     </tr>
                 `).join('');
@@ -463,6 +552,29 @@
             }
         });
 
+        // Promote User
+        async function promoteUser(userId) {
+            if (!confirm('Promouvoir cet utilisateur en admin?')) return;
+
+            try {
+                const res = await fetch('/api/admin/promote', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId })
+                });
+
+                if (res.ok) {
+                    alert('✅ Utilisateur promu en admin!');
+                    loadUsers();
+                }
+            } catch (error) {
+                alert('Erreur: ' + error.message);
+            }
+        }
+
         // Switch Tab
         function switchTab(tab) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -496,4 +608,4 @@
         }
     </script>
 </body>
-</html>
+    </html>
