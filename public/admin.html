@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin - Proxy Shop</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .logout-btn {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .main-panel {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .users-table th {
+            background: #f8f9fa;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .users-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .users-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge.admin {
+            background: #ffd700;
+            color: #333;
+        }
+
+        .badge.user {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 0 5px;
+            transition: all 0.3s;
+        }
+
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+            transform: translateY(-2px);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .login-container h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <h1>🔐 Admin Panel</h1>
+        <div id="loginAlert"></div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" required placeholder="admin@proxyshop.com">
+            </div>
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <input type="password" id="loginPassword" required placeholder="••••••••">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;">Se connecter</button>
+        </form>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="dashboard" style="display: none;">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>👑 Panel Admin</h1>
+                    <p style="color: #666; margin-top: 5px;">Bienvenue, <span id="adminEmail"></span></p>
+                </div>
+                <button class="logout-btn" onclick="logout()">Déconnexion</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Utilisateurs</h3>
+                    <div class="number" id="totalUsers">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Proxies Vendus</h3>
+                    <div class="number" id="totalProxies">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Revenus Totaux</h3>
+                    <div class="number" id="totalRevenue">$0</div>
+                </div>
+            </div>
+
+            <div class="main-panel">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('users')">👥 Utilisateurs</button>
+                    <button class="tab" onclick="switchTab('transactions')">💰 Transactions</button>
+                </div>
+
+                <div id="usersTab" class="tab-content active">
+                    <div class="loading" id="usersLoading">Chargement...</div>
+                    <table class="users-table" id="usersTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Balance</th>
+                                <th>Rôle</th>
+                                <th>Inscription</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="transactionsTab" class="tab-content">
+                    <div class="loading">Transactions à venir...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajout Crédit -->
+    <div id="creditModal" class="modal">
+        <div class="modal-content">
+            <h2>💵 Ajouter du crédit</h2>
+            <div id="creditAlert"></div>
+            <form id="creditForm">
+                <input type="hidden" id="creditUserId">
+                <div class="form-group">
+                    <label>Email utilisateur</label>
+                    <input type="text" id="creditUserEmail" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Montant ($)</label>
+                    <input type="number" id="creditAmount" step="0.01" min="0.01" required placeholder="0.25">
+                </div>
+                <div class="form-group">
+                    <label>Description (optionnel)</label>
+                    <textarea id="creditDescription" rows="3" placeholder="Ex: Recharge manuelle"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-danger" onclick="closeModal()">Annuler</button>
+                    <button type="submit" class="btn btn-success">Ajouter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('adminToken');
+        let currentUser = null;
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showAlert('loginAlert', data.error || 'Erreur de connexion', 'error');
+                    return;
+                }
+
+                if (!data.user.isAdmin) {
+                    showAlert('loginAlert', 'Accès refusé - Admin requis', 'error');
+                    return;
+                }
+
+                token = data.token;
+                localStorage.setItem('adminToken', token);
+                currentUser = data.user;
+                showDashboard();
+            } catch (error) {
+                showAlert('loginAlert', 'Erreur: ' + error.message, 'error');
+            }
+        });
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('adminToken');
+            token = null;
+            currentUser = null;
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'block';
+        }
+
+        // Show Dashboard
+        async function showDashboard() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('adminEmail').textContent = currentUser.email;
+            
+            await loadStats();
+            await loadUsers();
+        }
+
+        // Load Stats
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                
+                document.getElementById('totalUsers').textContent = data.totalUsers || 0;
+                document.getElementById('totalProxies').textContent = data.totalProxies || 0;
+                document.getElementById('totalRevenue').textContent = '$' + (data.totalRevenue || 0).toFixed(2);
+            } catch (error) {
+                console.error('Erreur stats:', error);
+            }
+        }
+
+        // Load Users
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/admin/users', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const users = await res.json();
+
+                document.getElementById('usersLoading').style.display = 'none';
+                document.getElementById('usersTable').style.display = 'table';
+
+                const tbody = document.getElementById('usersTableBody');
+                tbody.innerHTML = users.map(user => `
+                    <tr>
+                        <td>${user.email}</td>
+                        <td><strong>$${user.balance.toFixed(2)}</strong></td>
+                        <td>
+                            <span class="badge ${user.isAdmin ? 'admin' : 'user'}">
+                                ${user.isAdmin ? 'Admin' : 'User'}
+                            </span>
+                        </td>
+                        <td>${new Date(user.createdAt).toLocaleDateString('fr-FR')}</td>
+                        <td>
+                            <button class="btn btn-success" onclick="openCreditModal('${user._id}', '${user.email}')">
+                                + Crédit
+                            </button>
+                            ${!user.isAdmin ? `
+                                <button class="btn btn-primary" onclick="promoteUser('${user._id}')">
+                                    Promouvoir
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Erreur users:', error);
+            }
+        }
+
+        // Open Credit Modal
+        function openCreditModal(userId, email) {
+            document.getElementById('creditUserId').value = userId;
+            document.getElementById('creditUserEmail').value = email;
+            document.getElementById('creditAmount').value = '';
+            document.getElementById('creditDescription').value = '';
+            document.getElementById('creditAlert').innerHTML = '';
+            document.getElementById('creditModal').classList.add('active');
+        }
+
+        // Close Modal
+        function closeModal() {
+            document.getElementById('creditModal').classList.remove('active');
+        }
+
+        // Add Credit
+        document.getElementById('creditForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userId = document.getElementById('creditUserId').value;
+            const amount = parseFloat(document.getElementById('creditAmount').value);
+            const description = document.getElementById('creditDescription').value;
+
+            try {
+                const res = await fetch('/api/admin/add-credit', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId, amount, description })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showAlert('creditAlert', data.error || 'Erreur', 'error');
+                    return;
+                }
+
+                showAlert('creditAlert', `✅ $${amount} ajouté avec succès!`, 'success');
+                setTimeout(() => {
+                    closeModal();
+                    loadUsers();
+                    loadStats();
+                }, 1500);
+            } catch (error) {
+                showAlert('creditAlert', 'Erreur: ' + error.message, 'error');
+            }
+        });
+
+        // Promote User
+        async function promoteUser(userId) {
+            if (!confirm('Promouvoir cet utilisateur en admin?')) return;
+
+            try {
+                const res = await fetch('/api/admin/promote', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId })
+                });
+
+                if (res.ok) {
+                    alert('✅ Utilisateur promu en admin!');
+                    loadUsers();
+                }
+            } catch (error) {
+                alert('Erreur: ' + error.message);
+            }
+        }
+
+        // Switch Tab
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        // Show Alert
+        function showAlert(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="alert alert-${type === 'error' ? 'error' : 'success'}">${message}</div>`;
+        }
+
+        // Init
+        if (token) {
+            fetch('/api/auth/me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => res.json())
+            .then(user => {
+                if (user.isAdmin) {
+                    currentUser = user;
+                    showDashboard();
+                } else {
+                    logout();
+                }
+            })
+            .catch(() => logout());
+        }
+    </script>
+</body>
+  </html>
