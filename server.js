@@ -10,7 +10,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS Configuration - Accepte le frontend
+// Config CORS
 const corsOptions = {
   origin: [
     process.env.FRONTEND_URL,
@@ -26,22 +26,20 @@ app.set('trust proxy', 1);
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// --- MODIFICATION ICI ---
-// 1. Servir le dossier public avec un chemin absolu (plus fiable)
+// --- FIX : GESTION DES FICHIERS STATIQUES ---
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 2. Route racine : Si on va sur "/", on envoie admin.html
+// Redirection automatique de la racine vers admin.html
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
-// ------------------------
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connecté'))
   .catch(err => console.error('❌ MongoDB erreur:', err));
 
-// Models
+// --- MODELS ---
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -80,19 +78,17 @@ const User = mongoose.model('User', UserSchema);
 const Transaction = mongoose.model('Transaction', TransactionSchema);
 const ProxyPurchase = mongoose.model('ProxyPurchase', ProxyPurchaseSchema);
 
-// JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
+// JWT Secret (Priorité à ton .env, sinon GodistheKing)
+const JWT_SECRET = process.env.JWT_SECRET || 'GodistheKing';
 
-// Middleware d'authentification
+// --- MIDDLEWARES ---
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ error: 'Token manquant' });
-
     const decoded = jwt.verify(token, JWT_SECRET);
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(401).json({ error: 'User invalide' });
-
     req.user = user;
     next();
   } catch (error) {
@@ -100,15 +96,12 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Middleware admin
 const adminMiddleware = (req, res, next) => {
-  if (!req.user.isAdmin) {
-    return res.status(403).json({ error: 'Accès refusé - Admin requis' });
-  }
+  if (!req.user.isAdmin) return res.status(403).json({ error: 'Accès refusé - Admin requis' });
   next();
 };
 
-// Variables globales API
+// --- API EXTERNE CONFIG ---
 const API_BASE_URL = process.env.API_BASE_URL;
 let authToken = null;
 let tokenExpireAt = 0;
@@ -140,58 +133,37 @@ const PRICES = {
   }
 };
 
-// Fonction pour obtenir le token API (TES identifiants secrets)
 async function getAuthToken() {
   const now = Date.now() / 1000;
-  
-  if (authToken && tokenExpireAt > now + 300) {
-    return authToken;
-  }
-
+  if (authToken && tokenExpireAt > now + 300) return authToken;
   try {
     const response = await axios.post(`${API_BASE_URL}/login`, {
       email: process.env.API_EMAIL,
       password: process.env.API_PASSWORD
-    }, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 10000
     });
-
     authToken = response.data.token;
     tokenExpireAt = response.data.expire_at;
     return authToken;
-  } catch (error) {
-    throw error;
-  }
+  } catch (error) { throw error; }
 }
 
-// Requête API authentifiée
 async function apiRequest(method, endpoint, data = null, params = null) {
   const token = await getAuthToken();
-  
   const config = {
     method,
     url: `${API_BASE_URL}${endpoint}`,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    timeout: 15000
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    timeout: 15000,
+    data,
+    params
   };
-
-  if (data) config.data = data;
-  if (params) config.params = params;
-
   try {
     const response = await axios(config);
     return response.data;
   } catch (error) {
     if (error.response?.status === 401) {
       authToken = null;
-      const newToken = await getAuthToken();
-      config.headers.Authorization = `Bearer ${newToken}`;
-      const response = await axios(config);
-      return response.data;
+      return apiRequest(method, endpoint, data, params);
     }
     throw error;
   }
@@ -202,425 +174,141 @@ async function apiRequest(method, endpoint, data = null, params = null) {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email et password requis' });
-    }
-
+    if (!email || !password) return res.status(400).json({ error: 'Champs requis' });
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email déjà utilisé' });
-    }
+    if (existingUser) return res.status(400).json({ error: 'Email déjà utilisé' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({
-      email,
-      email,
-      password: hashedPassword,
-      balance: 0
-    });
-
+    const user = new User({ email, password: hashedPassword, balance: 0 });
     await user.save();
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        balance: user.balance,
-        isAdmin: user.isAdmin
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+    res.json({ token, user: { id: user._id, email: user.email, balance: user.balance, isAdmin: user.isAdmin } });
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
-    if (!user) {
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
-
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
-    }
-
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        balance: user.balance,
-        isAdmin: user.isAdmin
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+    res.json({ token, user: { id: user._id, email: user.email, balance: user.balance, isAdmin: user.isAdmin } });
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
-  res.json({
-    id: req.user._id,
-    email: req.user.email,
-    balance: req.user.balance,
-    isAdmin: req.user.isAdmin
-  });
+  res.json({ id: req.user._id, email: req.user.email, balance: req.user.balance, isAdmin: req.user.isAdmin });
 });
 
 // ========== ROUTES ADMIN ==========
 
 app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const users = await User.find().select('-password').sort({ createdAt: -1 });
+  res.json(users);
 });
 
 app.post('/api/admin/add-credit', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const { userId, amount, description } = req.body;
-
-    if (!userId || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'UserId et amount positif requis' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User non trouvé' });
-    }
-
-    const balanceBefore = user.balance;
-    user.balance += parseFloat(amount);
-    await user.save();
-
-    await new Transaction({
-      userId: user._id,
-      type: 'credit',
-      amount: parseFloat(amount),
-      description: description || 'Crédit ajouté par admin',
-      balanceBefore,
-      balanceAfter: user.balance
-    }).save();
-
-    res.json({
-      success: true,
-      user: {
-        id: user._id,
-        email: user.email,
-        balance: user.balance
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/admin/remove-credit', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const { userId, amount, description } = req.body;
-
-    if (!userId || !amount || amount <= 0) {
-      return res.status(400).json({ error: 'UserId et amount positif requis' });
-    }
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User non trouvé' });
-    }
-
-    const balanceBefore = user.balance;
-    user.balance -= parseFloat(amount);
-    if (user.balance < 0) user.balance = 0;
-    await user.save();
-
-    await new Transaction({
-      userId: user._id,
-      type: 'debit',
-      amount: parseFloat(amount),
-      description: description || 'Crédit retiré par admin',
-      balanceBefore,
-      balanceAfter: user.balance
-    }).save();
-
-    res.json({
-      success: true,
-      user: {
-        id: user._id,
-        email: user.email,
-        balance: user.balance
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/admin/promote', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const { userId } = req.body;
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: 'User non trouvé' });
-
-    user.isAdmin = true;
-    await user.save();
-
-    res.json({ success: true, user: { id: user._id, email: user.email, isAdmin: user.isAdmin } });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const { userId, amount, description } = req.body;
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ error: 'User non trouvé' });
+  const balanceBefore = user.balance;
+  user.balance += parseFloat(amount);
+  await user.save();
+  await new Transaction({ userId: user._id, type: 'credit', amount: parseFloat(amount), description, balanceBefore, balanceAfter: user.balance }).save();
+  res.json({ success: true, user: { email: user.email, balance: user.balance } });
 });
 
 app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments();
-    const totalProxies = await ProxyPurchase.countDocuments();
-    const totalRevenue = await Transaction.aggregate([
-      { $match: { type: 'purchase' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-
-    res.json({
-      totalUsers,
-      totalProxies,
-      totalRevenue: totalRevenue[0]?.total || 0
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const totalUsers = await User.countDocuments();
+  const totalProxies = await ProxyPurchase.countDocuments();
+  const rev = await Transaction.aggregate([{ $match: { type: 'purchase' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]);
+  res.json({ totalUsers, totalProxies, totalRevenue: rev[0]?.total || 0 });
 });
 
-// ========== ROUTES PROXIES (PROTÉGÉES) ==========
+// ========== ROUTES PROXIES ==========
 
-app.get('/api/prices', (req, res) => {
-  res.json(PRICES);
-});
+app.get('/api/prices', (req, res) => res.json(PRICES));
 
 app.get('/api/countries', authMiddleware, async (req, res) => {
-  try {
-    const { pkg_id } = req.query;
-    const data = await apiRequest('GET', '/countries', null, { pkg_id });
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  try { res.json(await apiRequest('GET', '/countries', null, { pkg_id: req.query.pkg_id })); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/cities', authMiddleware, async (req, res) => {
-  try {
-    const { country_id, pkg_id } = req.query;
-    const data = await apiRequest('GET', '/cities', null, { country_id, pkg_id });
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/api/service-providers', authMiddleware, async (req, res) => {
-  try {
-    const { city_id, pkg_id } = req.query;
-    const data = await apiRequest('GET', '/service-providers', null, { city_id, pkg_id });
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  try { res.json(await apiRequest('GET', '/cities', null, { country_id: req.query.country_id, pkg_id: req.query.pkg_id })); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/parent-proxies', authMiddleware, async (req, res) => {
   try {
-    const { offset = 0, pkg_id, service_provider_city_id } = req.query;
-    const params = { offset, pkg_id };
-    if (service_provider_city_id) params.service_provider_city_id = service_provider_city_id;
-    
-    const data = await apiRequest('GET', '/parent-proxies', null, params);
-    
-    let proxies = [];
-    if (Array.isArray(data)) {
-      proxies = data;
-    } else if (data && data.list) {
-      proxies = data.list;
-    } else if (data && data.data) {
-      proxies = data.data;
-    } else if (data && data.proxies) {
-      proxies = data.proxies;
-    }
-    
-    res.json(proxies);
-  } catch (error) {
-    res.json([]);
-  }
-});
-
-app.get('/api/check-username', authMiddleware, async (req, res) => {
-  try {
-    const { username } = req.query;
-    const data = await apiRequest('GET', '/check-username', null, { username });
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+    const data = await apiRequest('GET', '/parent-proxies', null, req.query);
+    res.json(data.list || data.data || data.proxies || data);
+  } catch (e) { res.json([]); }
 });
 
 app.post('/api/create-proxy', authMiddleware, async (req, res) => {
   try {
-    const { parent_proxy_id, package_id, protocol, duration, username, password, ip_addr } = req.body;
-    
+    const { package_id, duration, protocol, parent_proxy_id } = req.body;
     let price = 0;
+    // Calcul du prix
     for (const pkg of Object.values(PRICES)) {
       if (pkg.package_id === parseInt(package_id)) {
-        const priceObj = pkg.prices.find(p => p.duration === parseFloat(duration));
-        if (priceObj) {
-          price = priceObj.price;
-          break;
-        }
+        const pObj = pkg.prices.find(p => p.duration === parseFloat(duration));
+        if (pObj) price = pObj.price;
       }
     }
 
-    if (price === 0) {
-      return res.status(400).json({ error: 'Prix non trouvé pour cette configuration' });
-    }
+    if (price === 0 || req.user.balance < price) return res.status(400).json({ error: 'Solde insuffisant ou config invalide' });
 
-    if (req.user.balance < price) {
-      return res.status(400).json({ 
-        error: 'Solde insuffisant', 
-        required: price, 
-        balance: req.user.balance 
-      });
-    }
-
-    const proxyData = {
-      parent_proxy_id: parseInt(parent_proxy_id),
-      package_id: parseInt(package_id),
-      protocol,
-      duration: parseFloat(duration)
-    };
-
-    if (username && password) {
-      proxyData.username = username;
-      proxyData.password = password;
-    } else if (ip_addr) {
-      proxyData.ip_addr = ip_addr;
-    }
-
-    const apiResponse = await apiRequest('POST', '/proxies', proxyData);
-
+    const apiResponse = await apiRequest('POST', '/proxies', req.body);
     const balanceBefore = req.user.balance;
     req.user.balance -= price;
     await req.user.save();
 
-    await new Transaction({
-      userId: req.user._id,
-      type: 'purchase',
-      amount: price,
-      description: `Achat proxy ${protocol} - ${duration} jour(s)`,
-      balanceBefore,
-      balanceAfter: req.user.balance,
-      proxyDetails: apiResponse
+    await new Transaction({ userId: req.user._id, type: 'purchase', amount: price, balanceBefore, balanceAfter: req.user.balance, proxyDetails: apiResponse }).save();
+    const purchase = await new ProxyPurchase({ 
+        userId: req.user._id, 
+        proxyId: apiResponse.id, 
+        packageType: package_id == 1 ? 'golden' : 'silver',
+        ...apiResponse 
     }).save();
 
-    await new ProxyPurchase({
-      userId: req.user._id,
-      proxyId: apiResponse.id,
-      packageType: package_id === 1 ? 'golden' : 'silver',
-      duration: parseFloat(duration),
-      price,
-      username: apiResponse.username,
-      password: apiResponse.password,
-      host: apiResponse.host,
-      port: apiResponse.port,
-      protocol: apiResponse.protocol,
-      expiresAt: apiResponse.expires_at
-    }).save();
-
-    res.json({
-      success: true,
-      proxy: apiResponse,
-      newBalance: req.user.balance
-    });
-  } catch (error) {
-    console.error('Erreur create-proxy:', error.response?.data || error.message);
-    res.status(500).json({ 
-      error: error.response?.data?.message || error.message
-    });
-  }
+    res.json({ success: true, proxy: apiResponse, newBalance: req.user.balance });
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 app.get('/api/my-proxies', authMiddleware, async (req, res) => {
-  try {
-    const proxies = await ProxyPurchase.find({ userId: req.user._id }).sort({ createdAt: -1 });
-    res.json(proxies);
-  } catch (error) {
-    res.json([]);
-  }
+  const proxies = await ProxyPurchase.find({ userId: req.user._id }).sort({ createdAt: -1 });
+  res.json(proxies);
 });
 
 app.get('/api/transactions', authMiddleware, async (req, res) => {
-  try {
-    const transactions = await Transaction.find({ userId: req.user._id }).sort({ createdAt: -1 });
-    res.json(transactions);
-  } catch (error) {
-    res.json([]);
-  }
+  const tx = await Transaction.find({ userId: req.user._id }).sort({ createdAt: -1 });
+  res.json(tx);
 });
 
-app.get('/api/stats', async (req, res) => {
-  try {
-    const data = await apiRequest('GET', '/service-stats');
-    res.json(data);
-  } catch (error) {
-    res.json({ countries: 0, cities: 0, proxies: 0, service_providers: 0 });
-  }
-});
+app.get('/health', (req, res) => res.json({ status: 'OK' }));
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Créer le premier admin
-async function createDefaultAdmin() {
+// --- INITIALISATION ADMIN ---
+async function setupAdmin() {
   try {
-    const adminExists = await User.findOne({ isAdmin: true });
-    if (!adminExists) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
-      await new User({
-        email: 'admin@proxyshop.com',
-        password: hashedPassword,
-        balance: 0,
-        isAdmin: true
-      }).save();
-      console.log('\n👑 Admin créé: admin@proxyshop.com / admin123');
-    }
-  } catch (error) {
-    console.error('Erreur création admin:', error.message);
-  }
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    // On force la mise à jour si le compte existe déjà pour être SÛR du mot de passe
+    await User.findOneAndUpdate(
+      { email: 'admin@proxyshop.com' },
+      { password: hashedPassword, isAdmin: true },
+      { upsert: true }
+    );
+    console.log('👑 Admin configuré : admin@proxyshop.com / admin123');
+  } catch (e) { console.error('Erreur setup admin:', e.message); }
 }
 
 // Démarrage
 app.listen(PORT, async () => {
-  console.log('\n╔════════════════════════════════════════╗');
-  console.log('║    PROXY SHOP API - SERVEUR ACTIF      ║');
-  console.log('╚════════════════════════════════════════╝');
-  console.log(`\n🌐 Backend URL: http://localhost:${PORT}`);
-  console.log(`📋 Panel Admin: http://localhost:${PORT}/admin.html`); // Le lien / fonctionnera maintenant
-  console.log(`🔗 Frontend autorisé: ${process.env.FRONTEND_URL || 'localhost'}`);
-  
-  try {
-    await getAuthToken();
-    await createDefaultAdmin();
-    console.log('\n✅ Système prêt!\n');
-  } catch (error) {
-    console.log('\n⚠️  Vérifiez le .env\n');
-  }
+  console.log(`\n🚀 Serveur actif sur http://localhost:${PORT}`);
+  await setupAdmin();
+  try { await getAuthToken(); console.log('✅ API Proxy liée'); } catch(e) {}
 });
