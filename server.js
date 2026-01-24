@@ -10,12 +10,8 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-/* =======================
-   CONFIG
-======================= */
-app.set('trust proxy', 1);
-
-app.use(cors({
+// Config CORS
+const corsOptions = {
   origin: [
     process.env.FRONTEND_URL,
     'http://localhost:3000',
@@ -24,35 +20,26 @@ app.use(cors({
     'http://127.0.0.1:5000'
   ].filter(Boolean),
   credentials: true
-}));
+};
 
+app.set('trust proxy', 1);
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Redirect root
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-/* =======================
-   MONGODB
-======================= */
+// MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connecté'))
   .catch(err => console.error('❌ MongoDB erreur:', err));
 
-/* =======================
-   HELPERS
-======================= */
-function toInt(value) {
-  const n = parseInt(value, 10);
-  return Number.isNaN(n) ? null : n;
-}
-
-const JWT_SECRET = process.env.JWT_SECRET || 'GodistheKing';
-
-/* =======================
-   MODELS
-======================= */
+// --- MODELS ---
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -91,9 +78,10 @@ const User = mongoose.model('User', UserSchema);
 const Transaction = mongoose.model('Transaction', TransactionSchema);
 const ProxyPurchase = mongoose.model('ProxyPurchase', ProxyPurchaseSchema);
 
-/* =======================
-   AUTH MIDDLEWARE
-======================= */
+// JWT Secret
+const JWT_SECRET = process.env.JWT_SECRET || 'GodistheKing';
+
+// --- MIDDLEWARES ---
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -105,7 +93,7 @@ const authMiddleware = async (req, res, next) => {
 
     req.user = user;
     next();
-  } catch {
+  } catch (error) {
     res.status(401).json({ error: 'Token invalide' });
   }
 };
@@ -115,12 +103,37 @@ const adminMiddleware = (req, res, next) => {
   next();
 };
 
-/* =======================
-   API EXTERNE
-======================= */
+// --- API EXTERNE CONFIG ---
 const API_BASE_URL = process.env.API_BASE_URL;
 let authToken = null;
 let tokenExpireAt = 0;
+
+const PRICES = {
+  golden: {
+    name: "Golden Package",
+    package_id: parseInt(process.env.GOLDEN_PACKAGE_ID) || 1,
+    description: "Possibilité de changer de pays",
+    prices: [
+      { duration: 0.02, label: "2 heures", price: 0.25 },
+      { duration: 0.12, label: "12 heures", price: 0.45 },
+      { duration: 1, label: "1 jour", price: 0.7 },
+      { duration: 3, label: "3 jours", price: 2 },
+      { duration: 7, label: "7 jours", price: 4 },
+      { duration: 15, label: "15 jours", price: 7.5 },
+      { duration: 30, label: "30 jours", price: 14.5 }
+    ]
+  },
+  silver: {
+    name: "Silver Package",
+    package_id: parseInt(process.env.SILVER_PACKAGE_ID) || 2,
+    description: "Pays fixe",
+    prices: [
+      { duration: 2, label: "2 jours", price: 1.1 },
+      { duration: 7, label: "7 jours", price: 3 },
+      { duration: 30, label: "30 jours", price: 10 }
+    ]
+  }
+};
 
 async function getAuthToken() {
   const now = Date.now() / 1000;
@@ -138,18 +151,17 @@ async function getAuthToken() {
 
 async function apiRequest(method, endpoint, data = null, params = null) {
   const token = await getAuthToken();
+  const config = {
+    method,
+    url: `${API_BASE_URL}${endpoint}`,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    timeout: 15000,
+    data,
+    params
+  };
+
   try {
-    const response = await axios({
-      method,
-      url: `${API_BASE_URL}${endpoint}`,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      data,
-      params,
-      timeout: 15000
-    });
+    const response = await axios(config);
     return response.data;
   } catch (error) {
     if (error.response?.status === 401) {
@@ -160,35 +172,7 @@ async function apiRequest(method, endpoint, data = null, params = null) {
   }
 }
 
-/* =======================
-   PRICES
-======================= */
-const PRICES = {
-  golden: {
-    package_id: parseInt(process.env.GOLDEN_PACKAGE_ID) || 1,
-    prices: [
-      { duration: 0.02, label: "2 heures", price: 0.25 },
-      { duration: 0.12, label: "12 heures", price: 0.45 },
-      { duration: 1, label: "1 jour", price: 0.7 },
-      { duration: 3, label: "3 jours", price: 2 },
-      { duration: 7, label: "7 jours", price: 4 },
-      { duration: 15, label: "15 jours", price: 7.5 },
-      { duration: 30, label: "30 jours", price: 14.5 }
-    ]
-  },
-  silver: {
-    package_id: parseInt(process.env.SILVER_PACKAGE_ID) || 2,
-    prices: [
-      { duration: 2, label: "2 jours", price: 1.1 },
-      { duration: 7, label: "7 jours", price: 3 },
-      { duration: 30, label: "30 jours", price: 10 }
-    ]
-  }
-};
-
-/* =======================
-   ROUTES AUTH
-======================= */
+// ========== ROUTES AUTHENTIFICATION ==========
 
 app.post('/api/auth/register', async (req, res) => {
   try {
@@ -199,7 +183,7 @@ app.post('/api/auth/register', async (req, res) => {
     if (existingUser) return res.status(400).json({ error: 'Email déjà utilisé' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ email, password: hashedPassword });
+    const user = new User({ email, password: hashedPassword, balance: 0 });
     await user.save();
 
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
@@ -229,9 +213,7 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   res.json({ id: req.user._id, email: req.user.email, balance: req.user.balance, isAdmin: req.user.isAdmin });
 });
 
-/* =======================
-   ROUTES ADMIN
-======================= */
+// ========== ROUTES ADMIN ==========
 
 app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
   const users = await User.find().select('-password').sort({ createdAt: -1 });
@@ -270,49 +252,62 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
   res.json({ totalUsers, totalProxies, totalRevenue: rev[0]?.total || 0 });
 });
 
-/* =======================
-   ROUTES PROXIES
-======================= */
+// ========== ROUTES PROXIES ==========
 
 app.get('/api/prices', (req, res) => res.json(PRICES));
 
 app.get('/api/countries', authMiddleware, async (req, res) => {
   try {
-    const pkgId = toInt(req.query.pkg_id);
+    const pkgId = parseInt(req.query.pkg_id, 10);
     if (!pkgId) return res.status(400).json({ error: 'pkg_id invalide' });
 
-    const data = await apiRequest('GET', '/countries', null, { pkg_id: pkgId });
+    const data = await apiRequest('GET', '/countries', null, {
+      pkg_id: pkgId,
+      email: process.env.API_EMAIL
+    });
+
     res.json(data || []);
   } catch (e) {
-    console.error('Erreur /api/countries:', e.response?.data || e.message);
+    console.error("Erreur /api/countries:", e.response?.data || e.message);
     res.status(500).json({ error: 'Erreur chargement pays' });
   }
 });
 
 app.get('/api/cities', authMiddleware, async (req, res) => {
   try {
-    const countryId = toInt(req.query.country_id);
-    const pkgId = toInt(req.query.pkg_id);
+    const countryId = parseInt(req.query.country_id, 10);
+    const pkgId = parseInt(req.query.pkg_id, 10);
 
-    if (!countryId || !pkgId) return res.status(400).json({ error: 'Paramètres invalides' });
+    if (!countryId || !pkgId) {
+      return res.status(400).json({ error: 'Paramètres invalides' });
+    }
 
     const data = await apiRequest('GET', '/cities', null, {
       country_id: countryId,
-      pkg_id: pkgId
+      pkg_id: pkgId,
+      email: process.env.API_EMAIL
     });
 
     res.json(data || []);
   } catch (e) {
-    console.error('Erreur /api/cities:', e.response?.data || e.message);
+    console.error("Erreur /api/cities:", e.response?.data || e.message);
     res.status(500).json({ error: 'Erreur chargement villes' });
+  }
+});
+
+app.get('/api/parent-proxies', authMiddleware, async (req, res) => {
+  try {
+    const data = await apiRequest('GET', '/parent-proxies', null, req.query);
+    res.json(data.list || data.data || data.proxies || data);
+  } catch (e) {
+    res.json([]);
   }
 });
 
 app.post('/api/create-proxy', authMiddleware, async (req, res) => {
   try {
-    const { package_id, duration } = req.body;
+    const { package_id, duration, protocol, parent_proxy_id } = req.body;
 
-    // Calcul du prix
     let price = 0;
     for (const pkg of Object.values(PRICES)) {
       if (pkg.package_id === parseInt(package_id)) {
@@ -340,12 +335,10 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyDetails: apiResponse
     }).save();
 
-    await new ProxyPurchase({
+    const purchase = await new ProxyPurchase({
       userId: req.user._id,
       proxyId: apiResponse.id,
       packageType: package_id == 1 ? 'golden' : 'silver',
-      duration,
-      price,
       ...apiResponse
     }).save();
 
@@ -365,14 +358,9 @@ app.get('/api/transactions', authMiddleware, async (req, res) => {
   res.json(tx);
 });
 
-/* =======================
-   HEALTH
-======================= */
 app.get('/health', (req, res) => res.json({ status: 'OK' }));
 
-/* =======================
-   ADMIN SETUP
-======================= */
+// --- ADMIN SETUP ---
 async function setupAdmin() {
   try {
     const hashedPassword = await bcrypt.hash('admin123', 10);
@@ -387,17 +375,14 @@ async function setupAdmin() {
   }
 }
 
-/* =======================
-   START SERVER
-======================= */
+// START SERVER
 app.listen(PORT, async () => {
   console.log(`🚀 Serveur actif sur http://localhost:${PORT}`);
   await setupAdmin();
-
   try {
     await getAuthToken();
     console.log('✅ API Proxy liée');
   } catch (e) {
-    console.log('⚠️ API Proxy non liée');
+    console.log('⚠️ Impossible de lier l’API externe');
   }
 });
