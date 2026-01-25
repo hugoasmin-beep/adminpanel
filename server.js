@@ -32,7 +32,7 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connecté'))
   .catch(err => console.error('❌ MongoDB erreur:', err));
 
-// Models
+// ===== MODELS =====
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -67,14 +67,23 @@ const ProxyPurchaseSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const RechargeSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  amount: { type: Number, required: true },
+  faucetpayUsername: { type: String, required: true },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const User = mongoose.model('User', UserSchema);
 const Transaction = mongoose.model('Transaction', TransactionSchema);
 const ProxyPurchase = mongoose.model('ProxyPurchase', ProxyPurchaseSchema);
+const Recharge = mongoose.model('Recharge', RechargeSchema);
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 
-// Middleware d'authentification
+// ===== MIDDLEWARES =====
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -91,7 +100,6 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-// Middleware admin
 const adminMiddleware = (req, res, next) => {
   if (!req.user.isAdmin) {
     return res.status(403).json({ error: 'Accès refusé - Admin requis' });
@@ -131,7 +139,7 @@ const PRICES = {
   }
 };
 
-// Fonction pour obtenir le token API
+// ===== API FUNCTIONS =====
 async function getAuthToken() {
   const now = Date.now() / 1000;
   
@@ -156,7 +164,6 @@ async function getAuthToken() {
   }
 }
 
-// Requête API authentifiée
 async function apiRequest(method, endpoint, data = null, params = null) {
   const token = await getAuthToken();
   
@@ -188,8 +195,7 @@ async function apiRequest(method, endpoint, data = null, params = null) {
   }
 }
 
-// ========== ROUTES AUTHENTIFICATION ==========
-
+// ========== AUTH ROUTES ==========
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -267,8 +273,7 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
   });
 });
 
-// ========== ROUTES ADMIN ==========
-
+// ========== ADMIN ROUTES ==========
 app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
@@ -391,8 +396,118 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
   }
 });
 
-// ========== ROUTES PROXIES ==========
+// ========== RECHARGE ROUTES ==========
+app.get('/api/admin/recharges', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const recharges = await Recharge.find()
+      .populate('userId', 'email balance')
+      .sort({ createdAt: -1 });
 
+    res.json(recharges);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/recharge-request', authMiddleware, async (req, res) => {
+  try {
+    const { amount, faucetpayUsername } = req.body;
+
+    if (!amount || amount < 0.25) {
+      return res.status(400).json({ error: 'Montant minimum: $0.25' });
+    }
+
+    if (!faucetpayUsername) {
+      return res.status(400).json({ error: 'Nom FaucetPay requis' });
+    }
+
+    const recharge = new Recharge({
+      userId: req.user._id,
+      amount,
+      faucetpayUsername,
+      status: 'pending'
+    });
+
+    await recharge.save();
+
+    res.json({
+      success: true,
+      message: 'Demande de recharge envoyée',
+      recharge
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/recharges/:id/approve', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const recharge = await Recharge.findById(req.params.id);
+    
+    if (!recharge) {
+      return res.status(404).json({ error: 'Recharge non trouvée' });
+    }
+
+    if (recharge.status !== 'pending') {
+      return res.status(400).json({ error: 'Recharge déjà traitée' });
+    }
+
+    const user = await User.findById(recharge.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    const balanceBefore = user.balance;
+    user.balance += recharge.amount;
+    await user.save();
+
+    await new Transaction({
+      userId: user._id,
+      type: 'credit',
+      amount: recharge.amount,
+      description: `Recharge FaucetPay validée (${recharge.faucetpayUsername})`,
+      balanceBefore,
+      balanceAfter: user.balance
+    }).save();
+
+    recharge.status = 'approved';
+    await recharge.save();
+
+    res.json({
+      success: true,
+      message: 'Recharge approuvée et crédit ajouté',
+      userBalance: user.balance
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/recharges/:id/reject', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const recharge = await Recharge.findById(req.params.id);
+    
+    if (!recharge) {
+      return res.status(404).json({ error: 'Recharge non trouvée' });
+    }
+
+    if (recharge.status !== 'pending') {
+      return res.status(400).json({ error: 'Recharge déjà traitée' });
+    }
+
+    recharge.status = 'rejected';
+    await recharge.save();
+
+    res.json({
+      success: true,
+      message: 'Recharge rejetée'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== PROXY ROUTES ==========
 app.get('/api/prices', (req, res) => {
   res.json(PRICES);
 });
@@ -466,7 +581,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
   try {
     const { parent_proxy_id, package_id, protocol, duration, username, password, ip_addr } = req.body;
 
-    // Calcul du prix
     let price = 0;
     for (const pkg of Object.values(PRICES)) {
       if (pkg.package_id === parseInt(package_id)) {
@@ -476,7 +590,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     }
     if (price === 0) return res.status(400).json({ error: 'Prix non trouvé' });
 
-    // ❌ Solde utilisateur insuffisant
     if (req.user.balance < price) {
       return res.status(400).json({ 
         error: 'Solde insuffisant', 
@@ -485,7 +598,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       });
     }
 
-    // Préparer les données pour l'API externe (compte admin)
     const proxyData = { parent_proxy_id, package_id, protocol, duration };
     if (username && password) {
       proxyData.username = username;
@@ -494,8 +606,7 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyData.ip_addr = ip_addr;
     }
 
-    // ❌ Achat via compte admin (API_EMAIL)
-    const token = await getAuthToken(); // récupère token avec ton compte admin
+    const token = await getAuthToken();
     const apiResponse = await axios.post(`${API_BASE_URL}/proxies`, proxyData, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -503,12 +614,10 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       }
     }).then(r => r.data);
 
-    // Déduction du solde utilisateur
     const balanceBefore = req.user.balance;
     req.user.balance -= price;
     await req.user.save();
 
-    // Enregistrer transaction
     await new Transaction({
       userId: req.user._id,
       type: 'purchase',
@@ -519,7 +628,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyDetails: apiResponse
     }).save();
 
-    // Enregistrer proxy acheté
     await new ProxyPurchase({
       userId: req.user._id,
       proxyId: apiResponse.id,
@@ -537,7 +645,7 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     res.json({
       success: true,
       proxy: apiResponse,
-      userBalance: req.user.balance // ✅ renvoyer le solde utilisateur après achat
+      userBalance: req.user.balance
     });
 
   } catch (error) {
@@ -546,21 +654,9 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
   }
 });
 
-// Mes proxies - retourne les proxies de la BDD locale ET de l'API
 app.get('/api/my-proxies', authMiddleware, async (req, res) => {
   try {
-    // Récupérer les proxies de la base de données locale
     const localProxies = await ProxyPurchase.find({ userId: req.user._id }).sort({ createdAt: -1 });
-    
-    // Essayer de récupérer aussi depuis l'API externe (si disponible)
-    try {
-      const apiProxies = await apiRequest('GET', '/all-proxies', null, { offset: 0 });
-      // Combiner les deux sources si nécessaire
-      // Pour l'instant on retourne juste les locaux car l'API externe nécessite un compte différent
-    } catch (apiError) {
-      console.log('API externe non disponible, utilisation BDD locale uniquement');
-    }
-    
     res.json(localProxies);
   } catch (error) {
     console.error('Erreur my-proxies:', error);
@@ -568,7 +664,6 @@ app.get('/api/my-proxies', authMiddleware, async (req, res) => {
   }
 });
 
-// Transactions - retourne les transactions de la BDD locale
 app.get('/api/transactions', authMiddleware, async (req, res) => {
   try {
     const transactions = await Transaction.find({ userId: req.user._id }).sort({ createdAt: -1 });
@@ -588,12 +683,11 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-// Health check
+// ========== PAGES ==========
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Page d'accueil
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
@@ -663,7 +757,7 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Créer le premier admin
+// ========== STARTUP ==========
 async function createDefaultAdmin() {
   try {
     const adminExists = await User.findOne({ isAdmin: true });
@@ -681,227 +775,7 @@ async function createDefaultAdmin() {
     console.error('Erreur création admin:', error.message);
   }
 }
-// Modèle Recharge
-// Modèle Recharge
-// ===== MODÈLE RECHARGE =====
-const RechargeSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  amount: { type: Number, required: true },
-  faucetpayUsername: { type: String, required: true },
-  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-  createdAt: { type: Date, default: Date.now }
-});
 
-const Recharge = mongoose.model('Recharge', RechargeSchema);
-
-// ===== GET RECHARGES (Admin) =====
-app.get('/api/admin/recharges', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const recharges = await Recharge.find()
-      .populate('userId', 'email balance')
-      .sort({ createdAt: -1 });
-
-    console.log('📥 Recharges:', recharges);
-    res.json(recharges);
-  } catch (error) {
-    console.error('Erreur recharges:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// ===== POST RECHARGE REQUEST (User) =====
-app.post('/api/recharge-request', authMiddleware, async (req, res) => {
-  try {
-    const { amount, faucetpayUsername } = req.body;
-
-    if (!amount || amount < 0.25) {
-      return res.status(400).json({ error: 'Montant minimum: $0.25' });
-    }
-
-    if (!faucetpayUsername) {
-      return res.status(400).json({ error: 'Nom FaucetPay requis' });
-    }
-
-    const recharge = new Recharge({
-      userId: req.user._id,
-      amount,
-      faucetpayUsername,
-      status: 'pending'
-    });
-
-    await recharge.save();
-
-    res.json({
-      success: true,
-      message: 'Demande de recharge envoyée',
-      recharge
-    });
-  } catch (error) {
-    console.error('Erreur recharge-request:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// ===== APPROVE RECHARGE (Admin) =====
-app.post('/api/admin/recharges/:id/approve', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const recharge = await Recharge.findById(req.params.id);
-    
-    if (!recharge) {
-      return res.status(404).json({ error: 'Recharge non trouvée' });
-    }
-
-    if (recharge.status !== 'pending') {
-      return res.status(400).json({ error: 'Recharge déjà traitée' });
-    }
-
-    // Ajouter le crédit à l'utilisateur
-    const user = await User.findById(recharge.userId);
-    if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
-    }
-
-    const balanceBefore = user.balance;
-    user.balance += recharge.amount;
-    await user.save();
-
-    // Enregistrer la transaction
-    await new Transaction({
-      userId: user._id,
-      type: 'credit',
-      amount: recharge.amount,
-      description: `Recharge FaucetPay validée (${recharge.faucetpayUsername})`,
-      balanceBefore,
-      balanceAfter: user.balance
-    }).save();
-
-    // Mettre à jour la recharge
-    recharge.status = 'approved';
-    await recharge.save();
-
-    res.json({
-      success: true,
-      message: 'Recharge approuvée et crédit ajouté',
-      userBalance: user.balance
-    });
-  } catch (error) {
-    console.error('Erreur approve:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-
-// ===== REJECT RECHARGE (Admin) =====
-app.post('/api/admin/recharges/:id/reject', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const recharge = await Recharge.findById(req.params.id);
-    
-    if (!recharge) {
-      return res.status(404).json({ error: 'Recharge non trouvée' });
-    }
-
-    if (recharge.status !== 'pending') {
-      return res.status(400).json({ error: 'Recharge déjà traitée' });
-    }
-
-    recharge.status = 'rejected';
-    await recharge.save();
-
-    res.json({
-      success: true,
-      message: 'Recharge rejetée'
-    });
-  } catch (error) {
-    console.error('Erreur reject:', error);
-    res.status(500).json({ error: 'Erreur serveur' });
-  }
-});
-// RECHARGE MODEL
-// RECHARGE MODEL
-const RechargeSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  amount: { type: Number, required: true },
-  faucetpayUsername: { type: String, required: true },
-  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-  createdAt: { type: Date, default: Date.now }
-});
-const Recharge = mongoose.model('Recharge', RechargeSchema);
-
-// GET RECHARGES
-app.get('/api/admin/recharges', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const recharges = await Recharge.find().populate('userId', 'email').sort({ createdAt: -1 });
-    res.json(recharges);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// APPROVE RECHARGE
-app.post('/api/admin/recharges/:id/approve', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const recharge = await Recharge.findById(req.params.id);
-    if (!recharge) return res.status(404).json({ error: 'Recharge non trouvée' });
-    
-    const user = await User.findById(recharge.userId);
-    const balanceBefore = user.balance;
-    user.balance += recharge.amount;
-    await user.save();
-
-    await new Transaction({
-      userId: user._id,
-      type: 'credit',
-      amount: recharge.amount,
-      description: 'Recharge approuvée',
-      balanceBefore,
-      balanceAfter: user.balance
-    }).save();
-
-    recharge.status = 'approved';
-    await recharge.save();
-
-    res.json({ success: true, message: 'Approuvé' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// REJECT RECHARGE
-app.post('/api/admin/recharges/:id/reject', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const recharge = await Recharge.findById(req.params.id);
-    if (!recharge) return res.status(404).json({ error: 'Recharge non trouvée' });
-    
-    recharge.status = 'rejected';
-    await recharge.save();
-
-    res.json({ success: true, message: 'Rejeté' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// CREATE RECHARGE REQUEST (pour les utilisateurs)
-app.post('/api/recharge-request', authMiddleware, async (req, res) => {
-  try {
-    const { amount, faucetpayUsername } = req.body;
-    if (!amount || amount < 0.25) return res.status(400).json({ error: 'Min $0.25' });
-    if (!faucetpayUsername) return res.status(400).json({ error: 'FaucetPay requis' });
-
-    const recharge = new Recharge({
-      userId: req.user._id,
-      amount,
-      faucetpayUsername,
-      status: 'pending'
-    });
-    await recharge.save();
-
-    res.json({ success: true, message: 'Demande envoyée' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Démarrage
 app.listen(PORT, async () => {
   console.log('\n╔════════════════════════════════════════╗');
   console.log('║    PROXY SHOP API - SERVEUR ACTIF      ║');
