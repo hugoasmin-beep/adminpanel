@@ -568,7 +568,6 @@ app.get('/api/parent-proxies', authMiddleware, async (req, res) => {
     res.json([]);
   }
 });
-
 app.get('/api/check-username', authMiddleware, async (req, res) => {
   try {
     const { username } = req.query;
