@@ -6,6 +6,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { proxyApiRequest } = require('./proxyApi');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -107,11 +108,7 @@ const adminMiddleware = (req, res, next) => {
   next();
 };
 
-// Variables globales API
-const API_BASE_URL = process.env.API_BASE_URL;
-let authToken = null;
-let tokenExpireAt = 0;
-
+// PRICES Configuration
 const PRICES = {
   golden: {
     name: "Golden Package",
@@ -138,62 +135,6 @@ const PRICES = {
     ]
   }
 };
-
-// ===== API FUNCTIONS =====
-async function getAuthToken() {
-  const now = Date.now() / 1000;
-  
-  if (authToken && tokenExpireAt > now + 300) {
-    return authToken;
-  }
-
-  try {
-    const response = await axios.post(`${API_BASE_URL}/login`, {
-      email: process.env.API_EMAIL,
-      password: process.env.API_PASSWORD
-    }, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 10000
-    });
-
-    authToken = response.data.token;
-    tokenExpireAt = response.data.expire_at;
-    return authToken;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function apiRequest(method, endpoint, data = null, params = null) {
-  const token = await getAuthToken();
-  
-  const config = {
-    method,
-    url: `${API_BASE_URL}${endpoint}`,
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    timeout: 15000
-  };
-
-  if (data) config.data = data;
-  if (params) config.params = params;
-
-  try {
-    const response = await axios(config);
-    return response.data;
-  } catch (error) {
-    if (error.response?.status === 401) {
-      authToken = null;
-      const newToken = await getAuthToken();
-      config.headers.Authorization = `Bearer ${newToken}`;
-      const response = await axios(config);
-      return response.data;
-    }
-    throw error;
-  }
-}
 
 // ========== AUTH ROUTES ==========
 app.post('/api/auth/register', async (req, res) => {
@@ -507,6 +448,18 @@ app.post('/api/admin/recharges/:id/reject', authMiddleware, adminMiddleware, asy
   }
 });
 
+app.get('/api/my-recharges', authMiddleware, async (req, res) => {
+  try {
+    const recharges = await Recharge.find({ userId: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(20);
+    
+    res.json(recharges);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ========== PROXY ROUTES ==========
 app.get('/api/prices', (req, res) => {
   res.json(PRICES);
@@ -515,7 +468,7 @@ app.get('/api/prices', (req, res) => {
 app.get('/api/countries', authMiddleware, async (req, res) => {
   try {
     const { pkg_id } = req.query;
-    const data = await apiRequest('GET', '/countries', null, { pkg_id });
+    const data = await proxyApiRequest('GET', '/countries', null, { pkg_id });
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -525,7 +478,7 @@ app.get('/api/countries', authMiddleware, async (req, res) => {
 app.get('/api/cities', authMiddleware, async (req, res) => {
   try {
     const { country_id, pkg_id } = req.query;
-    const data = await apiRequest('GET', '/cities', null, { country_id, pkg_id });
+    const data = await proxyApiRequest('GET', '/cities', null, { country_id, pkg_id });
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -535,7 +488,7 @@ app.get('/api/cities', authMiddleware, async (req, res) => {
 app.get('/api/service-providers', authMiddleware, async (req, res) => {
   try {
     const { city_id, pkg_id } = req.query;
-    const data = await apiRequest('GET', '/service-providers', null, { city_id, pkg_id });
+    const data = await proxyApiRequest('GET', '/service-providers', null, { city_id, pkg_id });
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -548,7 +501,7 @@ app.get('/api/parent-proxies', authMiddleware, async (req, res) => {
     const params = { offset, pkg_id };
     if (service_provider_city_id) params.service_provider_city_id = service_provider_city_id;
     
-    const data = await apiRequest('GET', '/parent-proxies', null, params);
+    const data = await proxyApiRequest('GET', '/parent-proxies', null, params);
     
     let proxies = [];
     if (Array.isArray(data)) {
@@ -570,7 +523,7 @@ app.get('/api/parent-proxies', authMiddleware, async (req, res) => {
 app.get('/api/check-username', authMiddleware, async (req, res) => {
   try {
     const { username } = req.query;
-    const data = await apiRequest('GET', '/check-username', null, { username });
+    const data = await proxyApiRequest('GET', '/check-username', null, { username });
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -581,6 +534,11 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
   try {
     const { parent_proxy_id, package_id, protocol, duration, username, password, ip_addr } = req.body;
 
+    // ✅ L'utilisateur connecté
+    const userId = req.user._id;
+    const userBalance = req.user.balance;
+
+    // Calcule le prix
     let price = 0;
     for (const pkg of Object.values(PRICES)) {
       if (pkg.package_id === parseInt(package_id)) {
@@ -588,17 +546,26 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
         if (priceObj) price = priceObj.price;
       }
     }
+    
     if (price === 0) return res.status(400).json({ error: 'Prix non trouvé' });
 
-    if (req.user.balance < price) {
+    // ✅ Vérifie le solde DE L'UTILISATEUR
+    if (userBalance < price) {
       return res.status(400).json({ 
         error: 'Solde insuffisant', 
         required: price, 
-        balance: req.user.balance 
+        balance: userBalance 
       });
     }
 
-    const proxyData = { parent_proxy_id, package_id, protocol, duration };
+    // Prépare les données du proxy
+    const proxyData = { 
+      parent_proxy_id: parseInt(parent_proxy_id), 
+      package_id: parseInt(package_id), 
+      protocol, 
+      duration: parseFloat(duration)
+    };
+    
     if (username && password) {
       proxyData.username = username;
       proxyData.password = password;
@@ -606,18 +573,42 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyData.ip_addr = ip_addr;
     }
 
-    const token = await getAuthToken();
-    const apiResponse = await axios.post(`${API_BASE_URL}/proxies`, proxyData, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    }).then(r => r.data);
+    // ✅ APPEL L'API EXTERNE AVEC LES CREDENTIALS ADMIN
+    console.log(`📤 Création proxy avec credentials admin pour user ${req.user.email}`);
+    const apiResponse = await proxyApiRequest('POST', '/proxies', proxyData);
 
+    // ✅ DÉDUIT LE SOLDE DE L'UTILISATEUR
     const balanceBefore = req.user.balance;
     req.user.balance -= price;
     await req.user.save();
 
+    console.log(`✅ Proxy créé! User ${req.user.email}: ${balanceBefore}$ → ${req.user.balance}$`);
+
+    // ✅ DÉDUIT AUSSI LE SOLDE ADMIN (tonnyignace86)
+    try {
+      const adminUser = await User.findOne({ email: process.env.API_EMAIL });
+      if (adminUser) {
+        const adminBalanceBefore = adminUser.balance;
+        adminUser.balance -= price;
+        await adminUser.save();
+        
+        console.log(`✅ Admin ${adminUser.email}: ${adminBalanceBefore}$ → ${adminUser.balance}$`);
+
+        // Transaction admin
+        await new Transaction({
+          userId: adminUser._id,
+          type: 'debit',
+          amount: price,
+          description: `Proxy créé pour ${req.user.email} (${protocol})`,
+          balanceBefore: adminBalanceBefore,
+          balanceAfter: adminUser.balance
+        }).save();
+      }
+    } catch (adminError) {
+      console.error('⚠️  Erreur débit admin:', adminError.message);
+    }
+
+    // Enregistre la transaction utilisateur
     await new Transaction({
       userId: req.user._id,
       type: 'purchase',
@@ -628,29 +619,33 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyDetails: apiResponse
     }).save();
 
+    // Sauvegarde localement
     await new ProxyPurchase({
       userId: req.user._id,
       proxyId: apiResponse.id,
-      packageType: package_id === 1 ? 'golden' : 'silver',
+      packageType: package_id === '1' ? 'golden' : 'silver',
       duration,
       price,
-      username: apiResponse.username,
-      password: apiResponse.password,
-      host: apiResponse.host,
+      username: apiResponse.username || username || '',
+      password: apiResponse.password || password || '',
+      host: apiResponse.ip_addr || apiResponse.host,
       port: apiResponse.port,
-      protocol: apiResponse.protocol,
-      expiresAt: apiResponse.expires_at
+      protocol: apiResponse.type || protocol,
+      expiresAt: apiResponse.expire_at || new Date(Date.now() + duration * 24 * 60 * 60 * 1000)
     }).save();
 
     res.json({
       success: true,
       proxy: apiResponse,
-      userBalance: req.user.balance
+      userBalance: req.user.balance,
+      message: `✅ Proxy créé! Nouveau solde: $${req.user.balance.toFixed(2)}`
     });
 
   } catch (error) {
-    console.error('Erreur create-proxy:', error.response?.data || error.message);
-    res.status(500).json({ error: error.response?.data?.message || error.message });
+    console.error('❌ Erreur create-proxy:', error.message);
+    res.status(500).json({ 
+      error: error.response?.data?.message || error.message || 'Erreur création proxy'
+    });
   }
 });
 
@@ -676,7 +671,7 @@ app.get('/api/transactions', authMiddleware, async (req, res) => {
 
 app.get('/api/stats', async (req, res) => {
   try {
-    const data = await apiRequest('GET', '/service-stats');
+    const data = await proxyApiRequest('GET', '/service-stats');
     res.json(data);
   } catch (error) {
     res.json({ countries: 0, cities: 0, proxies: 0, service_providers: 0 });
@@ -775,18 +770,6 @@ async function createDefaultAdmin() {
     console.error('Erreur création admin:', error.message);
   }
 }
-// Route pour voir ses propres recharges
-app.get('/api/my-recharges', authMiddleware, async (req, res) => {
-  try {
-    const recharges = await Recharge.find({ userId: req.user._id })
-      .sort({ createdAt: -1 })
-      .limit(20);
-    
-    res.json(recharges);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 app.listen(PORT, async () => {
   console.log('\n╔════════════════════════════════════════╗');
@@ -797,7 +780,6 @@ app.listen(PORT, async () => {
   console.log(`🔗 Frontend autorisé: ${process.env.FRONTEND_URL || 'localhost'}`);
   
   try {
-    await getAuthToken();
     await createDefaultAdmin();
     console.log('\n✅ Système prêt!\n');
   } catch (error) {
