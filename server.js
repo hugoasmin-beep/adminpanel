@@ -723,12 +723,22 @@ app.post('/api/recharge-request', authMiddleware, async (req, res) => {
 // Route admin pour voir les demandes
 app.get('/api/admin/recharges', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const recharges = await Recharge.find()
-      .populate('userId', 'email balance')
-      .sort({ createdAt: -1 });
+    const recharges = await Recharge.find().sort({ createdAt: -1 });
+    
+    // Remplir les infos utilisateur manuellement
+    const enrichedRecharges = await Promise.all(
+      recharges.map(async (recharge) => {
+        const user = await User.findById(recharge.userId).select('email balance');
+        return {
+          ...recharge.toObject(),
+          userId: user ? { _id: user._id, email: user.email, balance: user.balance } : null
+        };
+      })
+    );
 
-    res.json(recharges);
+    res.json(enrichedRecharges);
   } catch (error) {
+    console.error('Erreur recharges:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
