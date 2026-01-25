@@ -28,12 +28,12 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static('public'));
 
-// MongoDB Connection
+// ========== MongoDB Connection ==========
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connecté'))
   .catch(err => console.error('❌ MongoDB erreur:', err));
 
-// ===== MODELS =====
+// ========== MODELS ==========
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -84,7 +84,7 @@ const Recharge = mongoose.model('Recharge', RechargeSchema);
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 
-// ===== MIDDLEWARES =====
+// ========== MIDDLEWARES ==========
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -108,7 +108,7 @@ const adminMiddleware = (req, res, next) => {
   next();
 };
 
-// PRICES Configuration
+// ========== PRICES Configuration ==========
 const PRICES = {
   golden: {
     name: "Golden Package",
@@ -136,12 +136,10 @@ const PRICES = {
   }
 };
 
-// ===== FONCTION HELPER: CREATE PROXY WITH PROTOCOL FALLBACK =====
+// ========== HELPER FUNCTION: CREATE PROXY WITH PROTOCOL FALLBACK ==========
 async function createProxyWithProtocolFallback(proxyData) {
-  // valeurs reçues par l'UI (ex: "http", "socks5")
   const originalProtocol = (proxyData.protocol || '').toString().toLowerCase();
 
-  // liste des mappings candidats vers ce que l'API pourrait attendre
   const protocolCandidates = [
     originalProtocol,
     originalProtocol === 'socks5' ? 'socks' : originalProtocol,
@@ -149,36 +147,30 @@ async function createProxyWithProtocolFallback(proxyData) {
     'http',
     'socks',
     'socks5'
-  ].filter((v, i, a) => v && a.indexOf(v) === i); // unique
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
 
   let lastError = null;
   for (const proto of protocolCandidates) {
     const dataToSend = { ...proxyData, protocol: proto };
     try {
       console.log(`🔄 Test protocol="${proto}"...`);
-      // appel principal
       const result = await proxyApiRequest('POST', '/proxies', dataToSend);
       console.log(`✅ Succès avec protocol="${proto}"`);
       return result;
     } catch (err) {
       lastError = err;
-      // si erreur 400 avec message enum, on log et on continue pour essayer la prochaine candidate
       const msg = err?.response?.data || err?.message || JSON.stringify(err);
       console.warn(`❌ Erreur API en testant protocol="${proto}":`, msg);
 
-      // si l'erreur n'est pas liée au protocole enum, remonter tout de suite
       const msgStr = String(msg).toLowerCase();
       if (!msgStr.includes('invalid enum parameter value for "protocol"') &&
           !msgStr.includes('invalid enum') &&
           !(err?.response?.status === 400)) {
-        throw err; // erreur différente => on s'arrête
+        throw err;
       }
-
-      // sinon on continue la boucle pour tester la suivante
     }
   }
 
-  // si on arrive ici, aucune candidate n'a fonctionné -> throw dernier erreur
   throw lastError || new Error('Impossible de créer proxy: protocole invalide');
 }
 
@@ -252,12 +244,16 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
-  res.json({
-    id: req.user._id,
-    email: req.user.email,
-    balance: req.user.balance,
-    isAdmin: req.user.isAdmin
-  });
+  try {
+    res.json({
+      id: req.user._id,
+      email: req.user.email,
+      balance: req.user.balance,
+      isAdmin: req.user.isAdmin
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ========== ADMIN ROUTES ==========
@@ -358,7 +354,14 @@ app.post('/api/admin/promote', authMiddleware, adminMiddleware, async (req, res)
     user.isAdmin = true;
     await user.save();
 
-    res.json({ success: true, user: { id: user._id, email: user.email, isAdmin: user.isAdmin } });
+    res.json({ 
+      success: true, 
+      user: { 
+        id: user._id, 
+        email: user.email, 
+        isAdmin: user.isAdmin 
+      } 
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -580,11 +583,9 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
   try {
     const { parent_proxy_id, package_id, protocol, duration, username, password, ip_addr } = req.body;
 
-    // ✅ L'utilisateur connecté
     const userId = req.user._id;
     const userBalance = req.user.balance;
 
-    // Calcule le prix
     let price = 0;
     for (const pkg of Object.values(PRICES)) {
       if (pkg.package_id === parseInt(package_id)) {
@@ -595,7 +596,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     
     if (price === 0) return res.status(400).json({ error: 'Prix non trouvé' });
 
-    // ✅ Vérifie le solde DE L'UTILISATEUR
     if (userBalance < price) {
       return res.status(400).json({ 
         error: 'Solde insuffisant', 
@@ -604,7 +604,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       });
     }
 
-    // Prépare les données du proxy
     const proxyData = { 
       parent_proxy_id: parseInt(parent_proxy_id), 
       package_id: parseInt(package_id), 
@@ -619,18 +618,15 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyData.ip_addr = ip_addr;
     }
 
-    // ✅ APPEL L'API EXTERNE AVEC LES CREDENTIALS ADMIN + FALLBACK PROTOCOL
     console.log(`📤 Création proxy avec credentials admin pour user ${req.user.email}`);
     const apiResponse = await createProxyWithProtocolFallback(proxyData);
 
-    // ✅ DÉDUIT LE SOLDE DE L'UTILISATEUR
     const balanceBefore = req.user.balance;
     req.user.balance -= price;
     await req.user.save();
 
     console.log(`✅ Proxy créé! User ${req.user.email}: ${balanceBefore}$ → ${req.user.balance}$`);
 
-    // ✅ DÉDUIT AUSSI LE SOLDE ADMIN (tonnyignace86)
     try {
       const adminUser = await User.findOne({ email: process.env.API_EMAIL });
       if (adminUser) {
@@ -640,7 +636,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
         
         console.log(`✅ Admin ${adminUser.email}: ${adminBalanceBefore}$ → ${adminUser.balance}$`);
 
-        // Transaction admin
         await new Transaction({
           userId: adminUser._id,
           type: 'debit',
@@ -654,7 +649,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       console.error('⚠️  Erreur débit admin:', adminError.message);
     }
 
-    // Enregistre la transaction utilisateur
     await new Transaction({
       userId: req.user._id,
       type: 'purchase',
@@ -665,7 +659,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyDetails: apiResponse
     }).save();
 
-    // Sauvegarde localement
     await new ProxyPurchase({
       userId: req.user._id,
       proxyId: apiResponse.id,
@@ -807,3 +800,30 @@ async function createDefaultAdmin() {
       await new User({
         email: 'admin@proxyshop.com',
         password: hashedPassword,
+        balance: 0,
+        isAdmin: true
+      }).save();
+      console.log('\n👑 Admin créé: admin@proxyshop.com / admin123');
+    }
+  } catch (error) {
+    console.error('Erreur création admin:', error.message);
+  }
+}
+
+app.listen(PORT, async () => {
+  console.log('\n╔════════════════════════════════════════╗');
+  console.log('║    PROXY SHOP API - SERVEUR ACTIF      ║');
+  console.log('╚════════════════════════════════════════╝');
+  console.log(`\n🌐 Backend URL: http://localhost:${PORT}`);
+  console.log(`📋 Panel Admin: http://localhost:${PORT}/admin.html`);
+  console.log(`🔗 Frontend autorisé: ${process.env.FRONTEND_URL || 'localhost'}`);
+  
+  try {
+    await createDefaultAdmin();
+    console.log('\n✅ Système prêt!\n');
+  } catch (error) {
+    console.log('\n⚠️  Vérifiez le .env\n');
+  }
+});
+
+module.exports = app;
