@@ -557,9 +557,7 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
 });
 
 // Changer le pays d'un proxy (Uniquement pour Golden Package)
-// ✅ Changer le pays d'un proxy (Uniquement pour Golden Package)
-app.put('/api/proxies/:id/change-parent', authMiddleware, async (req, res) => {
-// ✅ Changer le pays d'un proxy (Uniquement pour Golden Package)
+// ✅ Changer le pays d'un proxy (Uniquement pour Golden Package
 app.put('/api/proxies/:id/change-parent', authMiddleware, async (req, res) => {
   try {
     const { parent_proxy_id } = req.body;
