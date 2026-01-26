@@ -153,8 +153,9 @@ async function createProxyWithProtocolFallback(proxyData) {
   for (const proto of protocolCandidates) {
     const dataToSend = { ...proxyData, protocol: proto };
     try {
-      console.log(`🔄 Test protocol="${proto}"...`);
-      const result = await proxyApiRequest('POST', '/proxies', dataToSend);
+      console.log(`🔄 Test protocol="${proto}" via compte master...`);
+      // ✅ Utiliser proxyApiRequest() qui utilise le token du compte master (tonnyignace86@gmail.com)
+      const result = await proxyApiRequest('POST', '/parent-proxies', dataToSend);
       console.log(`✅ Succès avec protocol="${proto}"`);
       return result;
     } catch (err) {
