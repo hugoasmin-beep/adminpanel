@@ -557,16 +557,22 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
 });
 
 // Changer le pays d'un proxy (Uniquement pour Golden Package)
-app.post('/api/proxies/:id/change-location', authMiddleware, async (req, res) => {
+// ✅ Changer le pays d'un proxy (Uniquement pour Golden Package)
+app.put('/api/proxies/:id/change-parent', authMiddleware, async (req, res) => {
   try {
     const { parent_proxy_id } = req.body;
-    const proxy = await ProxyPurchase.findOne({ _id: req.params.id, userId: req.user._id });
+    
+    // Chercher le proxy par _id (MongoDB)
+    const proxy = await ProxyPurchase.findOne({ 
+      _id: req.params.id, 
+      userId: req.user._id 
+    });
 
     if (!proxy) {
       return res.status(404).json({ error: 'Proxy non trouvé' });
     }
 
-    if (proxy.packageType !== 'golden') {
+    if ((proxy.packageType || '').toLowerCase() !== 'golden') {
       return res.status(403).json({ error: 'Seuls les Golden Packages peuvent changer de pays' });
     }
 
@@ -574,7 +580,7 @@ app.post('/api/proxies/:id/change-location', authMiddleware, async (req, res) =>
       return res.status(400).json({ error: 'Nouveau Proxy Parent requis' });
     }
 
-    // Appel à l'API externe pour mettre à jour la localisation
+    // Appel à l'API externe pour mettre à jour
     const token = await getAuthToken();
     const apiResponse = await axios.put(`${API_BASE_URL}/proxies/${proxy.proxyId}`, {
       parent_proxy_id: parseInt(parent_proxy_id)
@@ -585,21 +591,24 @@ app.post('/api/proxies/:id/change-location', authMiddleware, async (req, res) =>
       }
     }).then(r => r.data);
 
-    // Mettre à jour les infos dans notre BDD
-    proxy.host = apiResponse.host;
-    proxy.port = apiResponse.port;
-    proxy.username = apiResponse.username;
-    proxy.password = apiResponse.password;
+    // Mettre à jour dans notre BDD
+    proxy.host = apiResponse.ip_addr || apiResponse.host || proxy.host;
+    proxy.port = apiResponse.port || proxy.port;
+    proxy.username = apiResponse.username || proxy.username;
+    proxy.password = apiResponse.password || proxy.password;
+    proxy.protocol = apiResponse.type || apiResponse.protocol || proxy.protocol;
+    proxy.expiresAt = apiResponse.expire_at || apiResponse.expires_at || proxy.expiresAt;
+    
     await proxy.save();
 
     res.json({
       success: true,
-      message: 'Localisation changée avec succès sur Proxy Shop',
-      proxy: proxy
+      message: 'Localisation changée avec succès! 🌍',
+      proxy: apiResponse
     });
 
   } catch (error) {
-    console.error('Erreur change-location:', error.response?.data || error.message);
+    console.error('Erreur change-parent:', error.response?.data || error.message);
     res.status(500).json({ error: error.response?.data?.message || error.message });
   }
 });
