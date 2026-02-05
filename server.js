@@ -125,7 +125,7 @@ const PRICES = {
     description: "Pays fixe",
     prices: [
       { duration: 2, label: "2 jours", price: 1.1 },
-      { duration: 7, label: "7 jours", price: 3 },
+      { duration: 7, label: "7 jours", price: 3.5 },  // ✅ CHANGÉ DE 3 à 3.5
       { duration: 30, label: "30 jours", price: 10 }
     ]
   }
