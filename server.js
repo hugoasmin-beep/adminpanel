@@ -110,13 +110,12 @@ const PRICES = {
     package_id: parseInt(process.env.GOLDEN_PACKAGE_ID) || 1,
     description: "Possibilité de changer de pays",
     prices: [
-      { duration: 0.02, label: "2 heures", price: 0.25 },
-      { duration: 0.12, label: "12 heures", price: 0.45 },
-      { duration: 1, label: "1 jour", price: 0.7 },
-      { duration: 3, label: "3 jours", price: 2 },
-      { duration: 7, label: "7 jours", price: 4 },
-      { duration: 15, label: "15 jours", price: 7.5 },
-      { duration: 30, label: "30 jours", price: 14.5 }
+      { duration: 0.02, label: "2 heures", price: 0.30 },
+      { duration: 0.12, label: "12 heures", price: 0.60 },
+      { duration: 3, label: "3 jours", price: 2.5 },
+      { duration: 7, label: "7 jours", price: 4.5 },
+      { duration: 15, label: "15 jours", price: 10 },
+      { duration: 30, label: "30 jours", price: 18 }
     ]
   },
   silver: {
@@ -124,9 +123,9 @@ const PRICES = {
     package_id: parseInt(process.env.SILVER_PACKAGE_ID) || 2,
     description: "Pays fixe",
     prices: [
-      { duration: 2, label: "2 jours", price: 1.1 },
-      { duration: 7, label: "7 jours", price: 3.5 },  // ✅ CHANGÉ DE 3 à 3.5
-      { duration: 30, label: "30 jours", price: 10 }
+      { duration: 2, label: "2 jours", price: 1.5 },
+      { duration: 7, label: "7 jours", price: 4 },
+      { duration: 30, label: "30 jours", price: 12 }
     ]
   }
 };
@@ -847,8 +846,8 @@ app.post('/api/recharge-request', authMiddleware, async (req, res) => {
   try {
     const { amount, faucetpayUsername } = req.body;
 
-    if (!amount || amount < 0.25) {
-      return res.status(400).json({ error: 'Montant minimum : 0.25$' });
+    if (!amount || amount < 0.5) {
+      return res.status(400).json({ error: 'Montant minimum : 0.50$' });
     }
     if (!faucetpayUsername) {
       return res.status(400).json({ error: 'Nom d’utilisateur FaucetPay requis' });
