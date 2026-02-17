@@ -12,30 +12,41 @@ const SENDX_API_KEY = process.env.SENDX_API_KEY;
 const SENDX_FROM_EMAIL = process.env.SENDX_FROM_EMAIL || 'support@proxyflow.com';
 
 async function sendEmailViaSendX(to, subject, htmlBody) {
-  const response = await axios.post(
-    'https://api.sendx.io/api/v1/rest/send/email',
-    {
-      from: { email: SENDX_FROM_EMAIL },
-      to: [{ email: to }],
-      subject,
-      htmlBody,
-      trackClicks: true,
-      trackOpens: true
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Team-ApiKey': SENDX_API_KEY
+  try {
+    const response = await axios.post(
+      'https://api.sendx.io/api/v1/rest/send/email',
+      {
+        from: { email: SENDX_FROM_EMAIL },
+        to: [{ email: to }],
+        subject,
+        htmlBody,
+        trackClicks: true,
+        trackOpens: true
       },
-      timeout: 10000
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Team-ApiKey': SENDX_API_KEY
+        },
+        timeout: 10000
+      }
+    );
+
+    if (response.data.rejected && response.data.rejected.length > 0) {
+      throw new Error(`Email rejeté par SendX pour: ${response.data.rejected.join(', ')}`);
     }
-  );
 
-  if (response.data.rejected && response.data.rejected.length > 0) {
-    throw new Error(`Email rejeté par SendX pour: ${response.data.rejected.join(', ')}`);
+    console.log(`✅ Email SendX envoyé à ${to} | messageId: ${response.data.messageId}`);
+    return response.data;
+
+  } catch (err) {
+    const status = err.response?.status;
+    const body = JSON.stringify(err.response?.data);
+    console.error(`❌ SendX erreur [${status}] → ${body}`);
+    console.error(`   → From: ${SENDX_FROM_EMAIL} | To: ${to} | Subject: ${subject}`);
+    console.error(`   → API Key définie: ${!!SENDX_API_KEY} (commence par: ${(SENDX_API_KEY || '').slice(0, 6)}...)`);
+    throw new Error(`SendX [${status}]: ${body}`);
   }
-
-  return response.data;
 }
 
 async function sendVerificationEmail(email, token) {
