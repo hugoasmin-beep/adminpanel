@@ -342,21 +342,67 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
   }
 });
 
-// Dashboard Utilisateur avec Résumé d'Expiration
+// Dashboard Utilisateur
 app.get('/api/user/dashboard', authMiddleware, async (req, res) => {
   try {
-    // Récupérer le résumé d'expiration
-    const expiringSummary = await ProxyExpirationService.getUserExpirationSummary(req.userId);
-    
-    // Récupérer les dernières alertes
+    const now = new Date();
+
+    // Récupérer tous les achats de proxies de l'utilisateur
+    const proxyPurchases = await Transaction.find({
+      userId: req.userId,
+      type: 'purchase',
+      proxyDetails: { $exists: true, $ne: null }
+    }).sort({ createdAt: -1 });
+
+    // Construire la liste des proxies avec leur statut d'expiration
+    const proxiesList = proxyPurchases.map(t => {
+      const pd = t.proxyDetails || {};
+      const expiresAt = pd.expiresAt ? new Date(pd.expiresAt) : null;
+      const daysRemaining = expiresAt
+        ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24))
+        : null;
+
+      let status = 'active';
+      if (expiresAt) {
+        if (expiresAt < now) status = 'expired';
+        else if (daysRemaining <= 7) status = 'expiring_soon';
+      }
+
+      return {
+        id: t._id,
+        type: pd.type || 'residential',
+        packageName: pd.packageName || pd.name || t.description || 'Proxy',
+        host: pd.host || null,
+        port: pd.port || null,
+        username: pd.username || null,
+        password: pd.password || null,
+        protocol: pd.protocol || 'http',
+        country: pd.country || null,
+        purchaseDate: t.createdAt,
+        expiresAt: expiresAt,
+        daysRemaining: daysRemaining,
+        status,
+        amount: t.amount
+      };
+    });
+
+    // Calculer les stats
+    const proxySummary = {
+      totalProxies: proxiesList.length,
+      active: proxiesList.filter(p => p.status === 'active').length,
+      expiringSoon: proxiesList.filter(p => p.status === 'expiring_soon').length,
+      expired: proxiesList.filter(p => p.status === 'expired').length
+    };
+
+    // Récupérer les alertes
     const recentAlerts = await ExpirationAlert.find({ userId: req.userId })
       .sort({ createdAt: -1 })
       .limit(5);
 
-    // Transactions récentes
+    // Transactions récentes (toutes, pas que les achats)
     const recentTransactions = await Transaction.find({ userId: req.userId })
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(10);
 
     res.json({
       success: true,
@@ -365,11 +411,12 @@ app.get('/api/user/dashboard', authMiddleware, async (req, res) => {
         balance: req.user.balance,
         createdAt: req.user.createdAt
       },
-      proxies: expiringSummary,
+      proxies: proxySummary,
+      proxiesList,
       alerts: recentAlerts.map(a => ({
         id: a._id,
         type: a.alertType,
-        message: `Proxy ${a.proxyDetails.type} expire dans ${a.proxyDetails.daysRemaining} jours`,
+        message: `Proxy ${a.proxyDetails?.type || ''} expire dans ${a.proxyDetails?.daysRemaining ?? '?'} jours`,
         createdAt: a.createdAt
       })),
       transactions: recentTransactions.map(t => ({
