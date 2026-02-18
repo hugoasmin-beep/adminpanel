@@ -5,23 +5,34 @@
 
 const express = require('express');
 const router = express.Router();
-const ProxyExpirationService = require('../services/proxyExpiration.service'); // ✅ CORRIGÉ
-const { Proxy, ExpirationAlert, ProxyRenewal } = require('../models/proxyExpiration.model'); // ✅ CORRIGÉ
+const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const ProxyExpirationService = require('../services/proxyExpiration.service');
+const { Proxy, ExpirationAlert, ProxyRenewal } = require('../models/proxyExpiration.model');
 
 /**
  * ===== MIDDLEWARE =====
  */
 
-// Middleware d'authentification (à adapter à votre système)
+// Middleware d'authentification — vérifie le JWT correctement
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ error: 'Token manquant' });
-    // Vérifier le token et récupérer l'utilisateur
-    req.userId = req.user?.id; // À adapter selon votre implémentation
+
+    const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Charger le modèle User dynamiquement (déjà enregistré dans server.js)
+    const User = mongoose.model('User');
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(401).json({ error: 'Utilisateur invalide' });
+
+    req.user = user;
+    req.userId = user._id;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Non authentifié' });
+    res.status(401).json({ error: 'Token invalide' });
   }
 };
 
