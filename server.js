@@ -6,54 +6,11 @@ const path = require('path');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const cron = require('node-cron');
-
-// ========== IMPORTS PROXY EXPIRATION ==========
-const proxyExpirationRoutes = require('./routes/proxyExpiration.routes');
-const ProxyExpirationService = require('./services/proxyExpiration.service');
-const { 
-  Proxy, 
-  ExpirationAlert, 
-  ProxyRenewal,
-  ExpirationAnalytics 
-} = require('./models/proxyExpiration.model');
-
-// ========== BREVO EMAIL ==========
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
-const BREVO_API_KEY = process.env.BREVO_API_KEY;
-const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'enlignea74@gmail.com';
-const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'ProxyFlow';
-
-async function sendEmailViaBrevo(to, subject, htmlContent) {
-  try {
-    const response = await axios.post(
-      'https://api.brevo.com/v3/smtp/email',
-      {
-        sender: { email: BREVO_FROM_EMAIL, name: BREVO_FROM_NAME },
-        to: [{ email: to }],
-        subject,
-        htmlContent
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': BREVO_API_KEY
-        },
-        timeout: 10000
-      }
-    );
-    console.log(`✅ Email envoyé à ${to}`);
-    return response.data;
-  } catch (err) {
-    console.error(`❌ Erreur Brevo: ${err.response?.status}`);
-    throw err;
-  }
-}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ========== CORS ==========
+// CORS Configuration
 const corsOptions = {
   origin: [
     process.env.FRONTEND_URL,
@@ -70,22 +27,17 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static('public'));
 
-// ========== MONGODB CONNECTION ==========
+// MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ MongoDB connecté'))
   .catch(err => console.error('❌ MongoDB erreur:', err));
 
-// ========== SCHEMAS ==========
+// Models
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   balance: { type: Number, default: 0 },
   isAdmin: { type: Boolean, default: false },
-  isEmailVerified: { type: Boolean, default: false },
-  emailVerificationToken: { type: String, default: null },
-  emailVerificationExpires: { type: Date, default: null },
-  passwordResetToken: { type: String, default: null },
-  passwordResetExpires: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -100,13 +52,29 @@ const TransactionSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const ProxyPurchaseSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  proxyId: { type: Number },
+  packageType: { type: String },
+  duration: { type: Number },
+  price: { type: Number },
+  username: { type: String },
+  password: { type: String },
+  host: { type: String },
+  port: { type: Number },
+  protocol: { type: String },
+  expiresAt: { type: Date },
+  createdAt: { type: Date, default: Date.now }
+});
+
 const User = mongoose.model('User', UserSchema);
 const Transaction = mongoose.model('Transaction', TransactionSchema);
+const ProxyPurchase = mongoose.model('ProxyPurchase', ProxyPurchaseSchema);
 
-// ========== JWT SECRET ==========
+// JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 
-// ========== MIDDLEWARE AUTHENTIFICATION ==========
+// Middleware d'authentification
 const authMiddleware = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -117,14 +85,13 @@ const authMiddleware = async (req, res, next) => {
     if (!user) return res.status(401).json({ error: 'User invalide' });
 
     req.user = user;
-    req.userId = user._id;
     next();
   } catch (error) {
     res.status(401).json({ error: 'Token invalide' });
   }
 };
 
-// ========== MIDDLEWARE ADMIN ==========
+// Middleware admin
 const adminMiddleware = (req, res, next) => {
   if (!req.user.isAdmin) {
     return res.status(403).json({ error: 'Accès refusé - Admin requis' });
@@ -132,458 +99,865 @@ const adminMiddleware = (req, res, next) => {
   next();
 };
 
+// Variables globales API
+const API_BASE_URL = process.env.API_BASE_URL;
+let authToken = null;
+let tokenExpireAt = 0;
+
+const PRICES = {
+  golden: {
+    name: "Golden Package",
+    package_id: parseInt(process.env.GOLDEN_PACKAGE_ID) || 1,
+    description: "Possibilité de changer de pays",
+    prices: [
+      { duration: 0.02, label: "2 heures", price: 0.30 },
+      { duration: 0.12, label: "12 heures", price: 0.60 },
+      { duration: 3, label: "3 jours", price: 2.5 },
+      { duration: 7, label: "7 jours", price: 4.5 },
+      { duration: 15, label: "15 jours", price: 10 },
+      { duration: 30, label: "30 jours", price: 18 }
+    ]
+  },
+  silver: {
+    name: "Silver Package",
+    package_id: parseInt(process.env.SILVER_PACKAGE_ID) || 2,
+    description: "Pays fixe",
+    prices: [
+      { duration: 2, label: "2 jours", price: 1.5 },
+      { duration: 7, label: "7 jours", price: 4 },
+      { duration: 30, label: "30 jours", price: 12 }
+    ]
+  }
+};
+
+// Fonction pour obtenir le token API
+async function getAuthToken() {
+  const now = Date.now() / 1000;
+  
+  if (authToken && tokenExpireAt > now + 300) {
+    return authToken;
+  }
+
+  try {
+    const response = await axios.post(`${API_BASE_URL}/login`, {
+      email: process.env.API_EMAIL,
+      password: process.env.API_PASSWORD
+    }, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 10000
+    });
+
+    authToken = response.data.token;
+    tokenExpireAt = response.data.expire_at;
+    return authToken;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Requête API authentifiée
+async function apiRequest(method, endpoint, data = null, params = null) {
+  const token = await getAuthToken();
+  
+  const config = {
+    method,
+    url: `${API_BASE_URL}${endpoint}`,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    timeout: 15000
+  };
+
+  if (data) config.data = data;
+  if (params) config.params = params;
+
+  try {
+    const response = await axios(config);
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      authToken = null;
+      const newToken = await getAuthToken();
+      config.headers.Authorization = `Bearer ${newToken}`;
+      const response = await axios(config);
+      return response.data;
+    }
+    throw error;
+  }
+}
+
 // ========== ROUTES AUTHENTIFICATION ==========
 
-// Inscription
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ error: 'Email déjà utilisé' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email et password requis' });
+    }
 
-    const crypto = require('crypto');
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email déjà utilisé' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ 
-      email, 
+    const user = new User({
+      email,
       password: hashedPassword,
-      balance: 0,
-      isEmailVerified: false,
-      emailVerificationToken: verificationToken,
-      emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
+      balance: 0
     });
 
     await user.save();
 
-    // Envoyer l'email de vérification
-    const verifyUrl = `${FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
-    try {
-      await sendEmailViaBrevo(email, '📧 Confirmez votre email - ProxyFlow', `
-        <h2>Bienvenue sur ProxyFlow !</h2>
-        <p>Merci de vous être inscrit. Cliquez sur le lien ci-dessous pour activer votre compte :</p>
-        <a href="${verifyUrl}" style="background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin:16px 0;">Activer mon compte</a>
-        <p>Ce lien expire dans 24 heures.</p>
-      `);
-    } catch (emailErr) {
-      console.error('⚠️ Email de vérification non envoyé:', emailErr.message);
-    }
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
-      success: true,
-      message: 'Inscription réussie ! Vérifiez votre email pour activer votre compte.',
-      user: { id: user._id, email: user.email }
-      // Pas de token : l'utilisateur doit d'abord vérifier son email
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        balance: user.balance,
+        isAdmin: user.isAdmin
+      }
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Connexion
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    if (!user) {
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+    }
 
-    // Vérifier si l'email est confirmé
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        error: 'Veuillez vérifier votre email avant de vous connecter.',
-        emailNotVerified: true
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        balance: user.balance,
+        isAdmin: user.isAdmin
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/auth/me', authMiddleware, async (req, res) => {
+  res.json({
+    id: req.user._id,
+    email: req.user.email,
+    balance: req.user.balance,
+    isAdmin: req.user.isAdmin
+  });
+});
+
+// ========== ROUTES ADMIN ==========
+
+app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const users = await User.find().select('-password').sort({ createdAt: -1 });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/add-credit', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { userId, amount, description } = req.body;
+
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({ error: 'UserId et amount positif requis' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User non trouvé' });
+    }
+
+    const balanceBefore = user.balance;
+    user.balance += parseFloat(amount);
+    await user.save();
+
+    await new Transaction({
+      userId: user._id,
+      type: 'credit',
+      amount: parseFloat(amount),
+      description: description || 'Crédit ajouté par admin',
+      balanceBefore,
+      balanceAfter: user.balance
+    }).save();
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        balance: user.balance
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/remove-credit', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { userId, amount, description } = req.body;
+
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({ error: 'UserId et amount positif requis' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User non trouvé' });
+    }
+
+    const balanceBefore = user.balance;
+    user.balance -= parseFloat(amount);
+    if (user.balance < 0) user.balance = 0;
+    await user.save();
+
+    await new Transaction({
+      userId: user._id,
+      type: 'debit',
+      amount: parseFloat(amount),
+      description: description || 'Crédit retiré par admin',
+      balanceBefore,
+      balanceAfter: user.balance
+    }).save();
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        balance: user.balance
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/promote', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User non trouvé' });
+
+    user.isAdmin = true;
+    await user.save();
+
+    res.json({ success: true, user: { id: user._id, email: user.email, isAdmin: user.isAdmin } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalProxies = await ProxyPurchase.countDocuments();
+    const totalRevenue = await Transaction.aggregate([
+      { $match: { type: 'purchase' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+
+    res.json({
+      totalUsers,
+      totalProxies,
+      totalRevenue: totalRevenue[0]?.total || 0
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========== ROUTES PROXIES ==========
+
+app.get('/api/prices', (req, res) => {
+  res.json(PRICES);
+});
+
+app.get('/api/countries', authMiddleware, async (req, res) => {
+  try {
+    const { pkg_id } = req.query;
+    const data = await apiRequest('GET', '/countries', null, { pkg_id });
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/cities', authMiddleware, async (req, res) => {
+  try {
+    const { country_id, pkg_id } = req.query;
+    const data = await apiRequest('GET', '/cities', null, { country_id, pkg_id });
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/service-providers', authMiddleware, async (req, res) => {
+  try {
+    const { city_id, pkg_id } = req.query;
+    const data = await apiRequest('GET', '/service-providers', null, { city_id, pkg_id });
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/parent-proxies', authMiddleware, async (req, res) => {
+  try {
+    const { offset = 0, pkg_id, service_provider_city_id, country_id } = req.query;
+    
+    const params = { offset, pkg_id };
+    
+    // ✅ Ajoute country_id s'il existe
+    if (country_id) {
+      params.country_id = parseInt(country_id);
+    }
+    
+    if (service_provider_city_id) {
+      params.service_provider_city_id = service_provider_city_id;
+    }
+    
+    const data = await apiRequest('GET', '/parent-proxies', null, params);
+    
+    let proxies = [];
+    if (Array.isArray(data)) {
+      proxies = data;
+    } else if (data && data.list) {
+      proxies = data.list;
+    } else if (data && data.data) {
+      proxies = data.data;
+    } else if (data && data.proxies) {
+      proxies = data.proxies;
+    }
+    
+    res.json(proxies);
+  } catch (error) {
+    res.json([]);
+  }
+});
+
+app.get('/api/check-username', authMiddleware, async (req, res) => {
+  try {
+    const { username } = req.query;
+    const data = await apiRequest('GET', '/check-username', null, { username });
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/create-proxy', authMiddleware, async (req, res) => {
+  try {
+    const { parent_proxy_id, package_id, protocol, duration, username, password, ip_addr } = req.body;
+
+    // ✅ VALIDATION 1 : Champs obligatoires
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username et Password sont obligatoires pour éviter des erreurs' });
+    }
+
+    // ✅ VALIDATION 2 : Format minuscules uniquement
+    const validPattern = /^[a-z0-9_-]+$/;
+    
+    if (!validPattern.test(username)) {
+      return res.status(400).json({ 
+        error: 'Username doit contenir uniquement des lettres minuscules, chiffres, _ et -' 
+      });
+    }
+    
+    if (!validPattern.test(password)) {
+      return res.status(400).json({ 
+        error: 'Password doit contenir uniquement des lettres minuscules, chiffres, _ et -' 
       });
     }
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '24h' });
-
-    res.json({
-      success: true,
-      message: 'Connexion réussie',
-      user: { id: user._id, email: user.email, isAdmin: user.isAdmin },
-      token
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Vérification email via token
-app.get('/api/auth/verify-email', async (req, res) => {
-  try {
-    const { token } = req.query;
-    if (!token) return res.status(400).json({ error: 'Token manquant' });
-
-    const user = await User.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: new Date() }
+    // ✅ VALIDATION 3 : Vérifier si les credentials existent déjà dans notre BDD
+    const existingProxy = await ProxyPurchase.findOne({
+      $or: [
+        { username: username },
+        { password: password },
+        { username: username, password: password }
+      ]
     });
 
-    if (!user) return res.status(400).json({ error: 'Token invalide ou expiré' });
+    if (existingProxy) {
+      return res.status(409).json({ 
+        error: 'Ces identifiants sont déjà utilisés. Veuillez en choisir d\'autres.' 
+      });
+    }
 
-    user.isEmailVerified = true;
-    user.emailVerificationToken = null;
-    user.emailVerificationExpires = null;
-    await user.save();
-
-    res.json({ success: true, message: 'Email vérifié avec succès ! Vous pouvez maintenant vous connecter.' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Renvoyer l'email de vérification
-app.post('/api/auth/resend-verification', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email requis' });
-
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
-    if (user.isEmailVerified) return res.status(400).json({ error: 'Email déjà vérifié' });
-
-    const crypto = require('crypto');
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    user.emailVerificationToken = verificationToken;
-    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
-    await user.save();
-
-    const verifyUrl = `${FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
-    await sendEmailViaBrevo(email, '📧 Vérifiez votre email - ProxyFlow', `
-      <h2>Vérification de votre email</h2>
-      <p>Cliquez sur le lien ci-dessous pour vérifier votre adresse email :</p>
-      <a href="${verifyUrl}" style="background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin:16px 0;">Vérifier mon email</a>
-      <p>Ce lien expire dans 24 heures.</p>
-    `);
-
-    res.json({ success: true, message: 'Email de vérification envoyé !' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Mot de passe oublié
-app.post('/api/auth/forgot-password', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email requis' });
-
-    const user = await User.findOne({ email });
-    // On répond toujours "ok" pour ne pas révéler si l'email existe
-    if (!user) return res.json({ success: true, message: 'Si cet email existe, un lien vous a été envoyé.' });
-
-    const crypto = require('crypto');
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    user.passwordResetToken = resetToken;
-    user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1h
-    await user.save();
-
-    const resetUrl = `${FRONTEND_URL}/forgot-password.html?token=${resetToken}`;
-    await sendEmailViaBrevo(email, '🔐 Réinitialisation de votre mot de passe - ProxyFlow', `
-      <h2>Réinitialisation du mot de passe</h2>
-      <p>Vous avez demandé une réinitialisation de votre mot de passe.</p>
-      <a href="${resetUrl}" style="background:#6366f1;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin:16px 0;">Réinitialiser mon mot de passe</a>
-      <p>Ce lien expire dans 1 heure. Si vous n'avez pas fait cette demande, ignorez cet email.</p>
-    `);
-
-    res.json({ success: true, message: 'Si cet email existe, un lien vous a été envoyé.' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Réinitialiser le mot de passe
-app.post('/api/auth/reset-password', async (req, res) => {
-  try {
-    const { token, password } = req.body;
-    if (!token || !password) return res.status(400).json({ error: 'Token et mot de passe requis' });
-    if (password.length < 6) return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 6 caractères' });
-
-    const user = await User.findOne({
-      passwordResetToken: token,
-      passwordResetExpires: { $gt: new Date() }
-    });
-
-    if (!user) return res.status(400).json({ error: 'Token invalide ou expiré' });
-
-    user.password = await bcrypt.hash(password, 10);
-    user.passwordResetToken = null;
-    user.passwordResetExpires = null;
-    await user.save();
-
-    res.json({ success: true, message: 'Mot de passe réinitialisé avec succès !' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========== ROUTES UTILISATEUR ==========
-
-// Profil
-app.get('/api/user/profile', authMiddleware, async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      user: {
-        id: req.user._id,
-        email: req.user.email,
-        balance: req.user.balance,
-        isAdmin: req.user.isAdmin,
-        createdAt: req.user.createdAt
+    // Calcul du prix
+    let price = 0;
+    for (const pkg of Object.values(PRICES)) {
+      if (pkg.package_id === parseInt(package_id)) {
+        const priceObj = pkg.prices.find(p => p.duration === parseFloat(duration));
+        if (priceObj) price = priceObj.price;
       }
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    }
+    if (price === 0) return res.status(400).json({ error: 'Prix non trouvé' });
 
-// ========== HELPER : parser la durée depuis la description ==========
-function parseDurationFromDescription(description) {
-  if (!description) return null;
-  // Ex: "30j", "30 jours", "0.02 jour(s)", "1 jour(s)", "30 days"
-  const match = description.match(/(\d+(?:\.\d+)?)\s*(?:jour|day|j)/i);
-  if (match) return parseFloat(match[1]);
-  return null;
-}
+    // Vérification solde
+    if (req.user.balance < price) {
+      return res.status(400).json({ 
+        error: 'Solde insuffisant', 
+        required: price, 
+        balance: req.user.balance 
+      });
+    }
 
-// ========== HELPER : normaliser le type proxy ==========
-function normalizeProxyType(rawType) {
-  if (!rawType) return 'PROXY';
-  const t = rawType.toString().toUpperCase();
-  if (t.includes('STATIC_ISP') || t.includes('STATIC ISP')) return 'STATIC_ISP';
-  if (t.includes('ISP')) return 'ISP';
-  if (t.includes('SOCKS5')) return 'SOCKS5';
-  if (t.includes('SOCKS')) return 'SOCKS';
-  if (t.includes('HTTP')) return 'HTTP';
-  if (t.includes('RESIDENTIAL') || t.includes('RESI')) return 'RESIDENTIAL';
-  if (t.includes('DATACENTER') || t.includes('DC')) return 'DATACENTER';
-  return t;
-}
-
-// Dashboard Utilisateur
-app.get('/api/user/dashboard', authMiddleware, async (req, res) => {
-  try {
-    const now = new Date();
-
-    // Récupérer TOUTES les transactions purchase (avec ou sans proxyDetails)
-    const proxyPurchases = await Transaction.find({
-      userId: req.userId,
-      type: 'purchase'
-    }).sort({ createdAt: -1 });
-
-    // Construire la liste des proxies
-    const proxiesList = proxyPurchases.map(t => {
-      const pd = t.proxyDetails || {};
-
-      // Récupérer ou calculer la date d'expiration
-      let expiresAt = null;
-      if (pd.expiresAt) {
-        expiresAt = new Date(pd.expiresAt);
-      } else {
-        // Calculer depuis createdAt + durée extraite de la description ou proxyDetails
-        const durationDays = pd.durationDays || pd.duration
-          || parseDurationFromDescription(t.description)
-          || parseDurationFromDescription(pd.description);
-        if (durationDays && durationDays > 0.05) { // ignorer les durées < ~1h (test)
-          expiresAt = new Date(t.createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
-        }
-      }
-
-      const daysRemaining = expiresAt
-        ? Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-        : null;
-
-      let status = 'active';
-      if (expiresAt) {
-        if (expiresAt < now) status = 'expired';
-        else if (daysRemaining <= 7) status = 'expiring_soon';
-      }
-
-      // Extraire les infos de connexion depuis proxyDetails ou deliveryNotes
-      const rawType = pd.type || pd.proxyType || pd.proxy_type || '';
-      const proxyType = normalizeProxyType(rawType) || 'PROXY';
-
-      // Construire la string host:port si disponible
-      const host = pd.host || pd.ip || pd.server || null;
-      const port = pd.port || null;
-      const username = pd.username || pd.user || pd.login || null;
-      const password = pd.password || pd.pass || null;
-      const protocol = pd.protocol || (proxyType.includes('SOCKS') ? 'socks5' : 'http');
-
-      // Infos de connexion lisibles
-      let connectionString = null;
-      if (host && port && username && password) {
-        connectionString = `${protocol}://${username}:${password}@${host}:${port}`;
-      } else if (host && port) {
-        connectionString = `${host}:${port}`;
-      }
-
-      // Notes de livraison brutes (si l'admin a mis du texte libre)
-      const deliveryNotes = pd.deliveryNotes || pd.notes || pd.info || null;
-
-      return {
-        id: t._id,
-        type: proxyType,
-        packageName: pd.packageName || pd.name || t.description || 'Proxy',
-        host,
-        port,
-        username,
-        password,
-        protocol,
-        connectionString,
-        deliveryNotes,
-        country: pd.country || pd.location || null,
-        purchaseDate: t.createdAt,
-        expiresAt,
-        daysRemaining,
-        status,
-        amount: t.amount
-      };
-    });
-
-    // Stats
-    const proxySummary = {
-      totalProxies: proxiesList.length,
-      active: proxiesList.filter(p => p.status === 'active').length,
-      expiringSoon: proxiesList.filter(p => p.status === 'expiring_soon').length,
-      expired: proxiesList.filter(p => p.status === 'expired').length
+    // Préparer les données pour l'API externe
+    const proxyData = {
+      parent_proxy_id,
+      package_id: parseInt(package_id),
+      protocol,
+      duration: parseFloat(duration),
+      username: username.toLowerCase(), // ✅ Force minuscules
+      password: password.toLowerCase()  // ✅ Force minuscules
     };
 
-    // Alertes récentes
-    const recentAlerts = await ExpirationAlert.find({ userId: req.userId })
-      .sort({ createdAt: -1 })
-      .limit(5);
+    if (ip_addr) {
+      proxyData.ip_addr = ip_addr;
+    }
 
-    // Toutes les transactions récentes
-    const recentTransactions = await Transaction.find({ userId: req.userId })
-      .sort({ createdAt: -1 })
-      .limit(10);
+    // Achat via API externe
+    const token = await getAuthToken();
+    let apiResponse;
+    
+    try {
+      apiResponse = await axios.post(`${API_BASE_URL}/proxies`, proxyData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }).then(r => r.data);
+    } catch (apiError) {
+      // ✅ Gérer les erreurs spécifiques de l'API externe
+      const errorMsg = apiError.response?.data?.message || apiError.message;
+      
+      // Si l'API externe dit que c'est un duplicate
+      if (errorMsg.toLowerCase().includes('already') || 
+          errorMsg.toLowerCase().includes('exist') ||
+          errorMsg.toLowerCase().includes('duplicate')) {
+        return res.status(409).json({ 
+          error: 'Ces identifiants sont déjà utilisés sur le système. Veuillez en choisir d\'autres.' 
+        });
+      }
+      
+      // Autre erreur API
+      throw apiError;
+    }
+
+    // Déduction du solde utilisateur
+    const balanceBefore = req.user.balance;
+    req.user.balance -= price;
+    await req.user.save();
+
+    // Enregistrer transaction
+    await new Transaction({
+      userId: req.user._id,
+      type: 'purchase',
+      amount: price,
+      description: `Achat proxy ${protocol} - ${duration} jour(s)`,
+      balanceBefore,
+      balanceAfter: req.user.balance,
+      proxyDetails: apiResponse
+    }).save();
+
+    // Enregistrer proxy acheté
+    await new ProxyPurchase({
+      userId: req.user._id,
+      proxyId: apiResponse.id,
+      packageType: parseInt(package_id) === 1 ? 'golden' : 'silver',
+      duration: parseFloat(duration),
+      price,
+      username: apiResponse.username || username.toLowerCase(),
+      password: apiResponse.password || password.toLowerCase(),
+      host: apiResponse.ip_addr,
+      port: apiResponse.port,
+      protocol: apiResponse.type,
+      expiresAt: apiResponse.expire_at
+    }).save();
 
     res.json({
       success: true,
-      user: {
-        email: req.user.email,
-        balance: req.user.balance,
-        createdAt: req.user.createdAt
-      },
-      proxies: proxySummary,
-      proxiesList,
-      alerts: recentAlerts.map(a => ({
-        id: a._id,
-        type: a.alertType,
-        message: `Proxy ${a.proxyDetails?.type || ''} expire dans ${a.proxyDetails?.daysRemaining ?? '?'} jours`,
-        createdAt: a.createdAt
-      })),
-      transactions: recentTransactions.map(t => ({
-        type: t.type,
-        amount: t.amount,
-        description: t.description,
-        createdAt: t.createdAt
-      }))
+      proxy: apiResponse,
+      userBalance: req.user.balance
     });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Erreur create-proxy:', error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({ 
+      error: error.response?.data?.message || error.message 
+    });
   }
 });
 
-// ========== ROUTES PROXY EXPIRATION ==========
-app.use('/api', proxyExpirationRoutes);
-
-// ========== CRON JOBS POUR L'EXPIRATION ==========
-
-// Mettre à jour les statuts (toutes les heures)
-cron.schedule('0 * * * *', async () => {
-  console.log('📅 Mise à jour automatique des statuts des proxies...');
+app.put('/api/proxies/:id/change-parent', authMiddleware, async (req, res) => {
   try {
-    await ProxyExpirationService.updateProxyStatuses();
+    const { parent_proxy_id, protocol } = req.body;  // ✅ Extraire protocol
+    
+    const proxy = await ProxyPurchase.findOne({ 
+      _id: req.params.id,
+      userId: req.user._id 
+    });
+
+    if (!proxy) {
+      return res.status(404).json({ error: 'Proxy non trouvé' });
+    }
+
+    if ((proxy.packageType || '').toLowerCase() !== 'golden') {
+      return res.status(403).json({ error: 'Seuls les Golden Packages peuvent changer de pays' });
+    }
+
+    if (!parent_proxy_id) {
+      return res.status(400).json({ error: 'Parent proxy requis' });
+    }
+
+    // ✅ Normaliser le protocol pour l'API externe : "http" ou "socks" (pas "SOCKS5")
+    let apiProtocol = (protocol || proxy.protocol || 'http').toLowerCase();
+    if (apiProtocol.includes('socks')) apiProtocol = 'socks';  // socks5 → socks
+    if (apiProtocol.includes('http')) apiProtocol = 'http';
+
+    const token = await getAuthToken();
+    const apiResponse = await axios.put(
+      `${API_BASE_URL}/proxies/${proxy.proxyId}`,
+      { 
+        parent_proxy_id: parseInt(parent_proxy_id),
+        protocol: apiProtocol   // ✅ AJOUTÉ !
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    ).then(r => r.data);
+
+    // Mettre à jour dans notre BDD
+    proxy.host = apiResponse.ip_addr || proxy.host;
+    proxy.port = apiResponse.port || proxy.port;
+    proxy.username = apiResponse.username || proxy.username;
+    proxy.password = apiResponse.password || proxy.password;
+    proxy.protocol = apiResponse.type || proxy.protocol;
+    proxy.expiresAt = apiResponse.expire_at || proxy.expiresAt;
+    
+    await proxy.save();
+
+    res.json({
+      success: true,
+      message: '🌍 Localisation changée avec succès!',
+      proxy: apiResponse
+    });
+
   } catch (error) {
-    console.error('❌ Erreur lors de la mise à jour:', error);
+    console.error('❌ Erreur:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+    
+    res.status(error.response?.status || 500).json({ 
+      error: error.response?.data?.message || error.message
+    });
   }
 });
 
-// Créer les alertes (8h et 14h)
-cron.schedule('0 8,14 * * *', async () => {
-  console.log('🔔 Création des alertes d\'expiration...');
+// Mes proxies - retourne les proxies de la BDD locale ET de l'API
+app.get('/api/my-proxies', authMiddleware, async (req, res) => {
   try {
-    await ProxyExpirationService.createExpirationAlerts();
+    // Récupérer les proxies de la base de données locale
+    const localProxies = await ProxyPurchase.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    
+    // Essayer de récupérer aussi depuis l'API externe (si disponible)
+    try {
+      const apiProxies = await apiRequest('GET', '/all-proxies', null, { offset: 0 });
+      // Combiner les deux sources si nécessaire
+      // Pour l'instant on retourne juste les locaux car l'API externe nécessite un compte différent
+    } catch (apiError) {
+      console.log('API externe non disponible, utilisation BDD locale uniquement');
+    }
+    
+    res.json(localProxies);
   } catch (error) {
-    console.error('❌ Erreur lors de la création des alertes:', error);
+    console.error('Erreur my-proxies:', error);
+    res.json([]);
   }
 });
 
-// Envoyer les alertes (9h, 15h, 21h)
-cron.schedule('0 9,15,21 * * *', async () => {
-  console.log('📧 Envoi des alertes en attente...');
+// Transactions - retourne les transactions de la BDD locale
+app.get('/api/transactions', authMiddleware, async (req, res) => {
   try {
-    await ProxyExpirationService.sendPendingAlerts();
+    const transactions = await Transaction.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    res.json(transactions);
   } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi des alertes:', error);
+    console.error('Erreur transactions:', error);
+    res.json([]);
   }
 });
 
-// Traiter les auto-renewals (6h et 18h)
-cron.schedule('0 6,18 * * *', async () => {
-  console.log('🔄 Traitement des renouvellements automatiques...');
+app.get('/api/stats', async (req, res) => {
   try {
-    const count = await ProxyExpirationService.processScheduledAutoRenewals();
-    console.log(`✅ ${count} renouvellements automatiques traités`);
+    const data = await apiRequest('GET', '/service-stats');
+    res.json(data);
   } catch (error) {
-    console.error('❌ Erreur lors du traitement des renouvellements:', error);
+    res.json({ countries: 0, cities: 0, proxies: 0, service_providers: 0 });
   }
 });
 
-// Analytics (23h)
-cron.schedule('0 23 * * *', async () => {
-  console.log('📊 Génération des analytics d\'expiration...');
-  try {
-    await ProxyExpirationService.generateExpirationAnalytics();
-  } catch (error) {
-    console.error('❌ Erreur lors de la génération des analytics:', error);
-  }
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-console.log('✅ Cron jobs initialisés');
-
-// ========== ROUTE SANTÉ ==========
-app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: 'API en ligne',
-    timestamp: new Date(),
-    uptime: process.uptime()
-  });
-});
-
-// ========== GESTION ERREURS ==========
-app.use((err, req, res, next) => {
-  console.error('❌ Erreur:', err);
-  res.status(500).json({
-    error: 'Erreur serveur interne',
-    message: err.message
-  });
-});
-
-// ========== DÉMARRAGE ==========
-app.listen(PORT, () => {
-  console.log(`
-╔════════════════════════════════════════════════════════════════╗
-║                   🚀 PROXYFLOW API DÉMARRÉE                   ║
-╠════════════════════════════════════════════════════════════════╣
-║  Port:                  ${PORT}                                   ║
-║  Environnement:         ${process.env.NODE_ENV || 'development'}        ║
-║  MongoDB:               ✅ Connectée                           ║
-║  Cron Jobs:             ✅ 5 tâches actives                   ║
-║  Email (Brevo):         ✅ Configuré                          ║
-╠════════════════════════════════════════════════════════════════╣
-║  Dashboard:             http://localhost:${PORT}/dashboard.html  ║
-║  API Docs:              http://localhost:${PORT}/api/health   ║
-╚════════════════════════════════════════════════════════════════╝
+// Page d'accueil
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Proxy Shop API</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+          }
+          .container {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 50px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+          }
+          h1 { font-size: 48px; margin-bottom: 10px; }
+          p { font-size: 18px; opacity: 0.9; margin-bottom: 30px; }
+          .links { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+          a {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s;
+          }
+          a:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(255,255,255,0.3);
+          }
+          .status {
+            background: rgba(76, 175, 80, 0.3);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 20px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🌐 Proxy Shop API</h1>
+          <p>Backend opérationnel et prêt</p>
+          <div class="links">
+            <a href="/admin.html">👑 Panel Admin</a>
+            <a href="/health">🏥 Health Check</a>
+          </div>
+          <div class="status">✅ Système actif</div>
+        </div>
+      </body>
+    </html>
   `);
 });
 
-module.exports = app;
+// Créer le premier admin
+async function createDefaultAdmin() {
+  try {
+    const adminExists = await User.findOne({ isAdmin: true });
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      await new User({
+        email: 'admin@proxyshop.com',
+        password: hashedPassword,
+        balance: 0,
+        isAdmin: true
+      }).save();
+      console.log('\n👑 Admin créé: admin@proxyshop.com / admin123');
+    }
+  } catch (error) {
+    console.error('Erreur création admin:', error.message);
+  }
+}
+// Modèle Recharge
+const RechargeSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  amount: { type: Number, required: true },
+  faucetpayUsername: { type: String, required: true },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Recharge = mongoose.model('Recharge', RechargeSchema);
+
+// Route pour récupérer l'historique des recharges de l'utilisateur
+app.get('/api/my-recharges', authMiddleware, async (req, res) => {
+  try {
+    const recharges = await Recharge.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    res.json(recharges);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Route pour créer une demande de recharge
+app.post('/api/recharge-request', authMiddleware, async (req, res) => {
+  try {
+    const { amount, faucetpayUsername } = req.body;
+
+    if (!amount || amount < 0.5) {
+      return res.status(400).json({ error: 'Montant minimum : 0.50$' });
+    }
+    if (!faucetpayUsername) {
+      return res.status(400).json({ error: 'Nom d’utilisateur FaucetPay requis' });
+    }
+
+    const recharge = new Recharge({
+      userId: req.user._id,
+      amount,
+      faucetpayUsername
+    });
+
+    await recharge.save();
+
+    res.json({ success: true, message: 'Demande envoyée. En attente de validation admin.' });
+
+  } catch (error) {
+    console.error('Erreur recharge-request:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Route admin pour voir les demandes
+app.get('/api/admin/recharges', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const recharges = await Recharge.find()
+      .populate('userId', 'email balance')
+      .sort({ createdAt: -1 });
+
+    // Transformer pour le frontend
+    const formatted = recharges.map(r => ({
+      ...r._doc,
+      userEmail: r.userId?.email || 'N/A'
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Route admin pour valider une recharge
+app.post('/api/admin/recharges/:id/approve', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const recharge = await Recharge.findById(req.params.id);
+    if (!recharge) return res.status(404).json({ error: 'Demande non trouvée' });
+
+    if (recharge.status !== 'pending') {
+      return res.status(400).json({ error: 'Demande déjà traitée' });
+    }
+
+    const user = await User.findById(recharge.userId);
+    if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+
+    const balanceBefore = user.balance;
+    user.balance += recharge.amount;
+    await user.save();
+
+    recharge.status = 'approved';
+    await recharge.save();
+
+    // Enregistrer la transaction
+    await new Transaction({
+      userId: user._id,
+      type: 'credit',
+      amount: recharge.amount,
+      description: `Recharge validée par admin (${recharge.faucetpayUsername})`,
+      balanceBefore,
+      balanceAfter: user.balance
+    }).save();
+
+    res.json({ success: true, message: 'Recharge approuvée', newBalance: user.balance });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Route admin pour rejeter une recharge
+app.post('/api/admin/recharges/:id/reject', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const recharge = await Recharge.findById(req.params.id);
+    if (!recharge) return res.status(404).json({ error: 'Demande non trouvée' });
+
+    if (recharge.status !== 'pending') {
+      return res.status(400).json({ error: 'Demande déjà traitée' });
+    }
+
+    recharge.status = 'rejected';
+    await recharge.save();
+
+    res.json({ success: true, message: 'Recharge rejetée' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+
+// Démarrage
+app.listen(PORT, async () => {
+  console.log('\n╔════════════════════════════════════════╗');
+  console.log('║    PROXY SHOP API - SERVEUR ACTIF      ║');
+  console.log('╚════════════════════════════════════════╝');
+  console.log(`\n🌐 Backend URL: http://localhost:${PORT}`);
+  console.log(`📋 Panel Admin: http://localhost:${PORT}/admin.html`);
+  console.log(`🔗 Frontend autorisé: ${process.env.FRONTEND_URL || 'localhost'}`);
+  
+  try {
+    await getAuthToken();
+    await createDefaultAdmin();
+    console.log('\n✅ Système prêt!\n');
+  } catch (error) {
+    console.log('\n⚠️  Vérifiez le .env\n');
+  }
+});
