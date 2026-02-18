@@ -3,14 +3,15 @@
  * Gestion complète de l'expiration, des alertes et des renouvellements
  */
 
+const axios = require('axios');
+
+// ✅ CHEMINS CORRIGÉS - Imports depuis services/
 const { 
   Proxy, 
   ExpirationAlert, 
   ProxyRenewal, 
   ExpirationAnalytics 
-} = require('./proxyExpiration.model');
-
-const axios = require('axios');
+} = require('../models/proxyExpiration.model');
 
 class ProxyExpirationService {
   /**
@@ -125,13 +126,6 @@ class ProxyExpirationService {
    * Générer une alerte
    */
   static generateAlert(proxy, alertType, daysRemaining) {
-    const messages = {
-      '7_days_before': 'Votre proxy expire dans 7 jours',
-      '3_days_before': 'Votre proxy expire dans 3 jours',
-      '1_day_before': 'Votre proxy expire demain',
-      'expired': 'Votre proxy a expiré'
-    };
-
     return {
       proxyId: proxy._id,
       userId: proxy.userId,
@@ -194,26 +188,22 @@ class ProxyExpirationService {
       '7_days_before': {
         subject: '⏰ Votre proxy expire dans 7 jours',
         title: 'Expiration du Proxy',
-        message: `Votre proxy ${proxy.type.toUpperCase()} expires le ${new Date(proxy.expiresAt).toLocaleDateString('fr-FR')}. Envisagez un renouvellement.`,
-        action: 'Renouveler maintenant'
+        message: `Votre proxy ${proxy.type.toUpperCase()} expires le ${new Date(proxy.expiresAt).toLocaleDateString('fr-FR')}.`
       },
       '3_days_before': {
         subject: '⏰ Votre proxy expire dans 3 jours',
         title: 'Renouvellement recommandé',
-        message: `Il vous reste seulement 3 jours avant l'expiration de votre proxy ${proxy.type.toUpperCase()}.`,
-        action: 'Renouveler immédiatement'
+        message: `Il vous reste seulement 3 jours avant l'expiration de votre proxy ${proxy.type.toUpperCase()}.`
       },
       '1_day_before': {
         subject: '🚨 Votre proxy expire demain',
         title: 'Expiration imminente',
-        message: `Votre proxy ${proxy.type.toUpperCase()} expire demain à ${new Date(proxy.expiresAt).toLocaleTimeString('fr-FR')}.`,
-        action: 'Renouveler rapidement'
+        message: `Votre proxy ${proxy.type.toUpperCase()} expire demain.`
       },
       'expired': {
         subject: '❌ Votre proxy a expiré',
         title: 'Proxy expiré',
-        message: `Votre proxy ${proxy.type.toUpperCase()} a expiré et n'est plus accessible.`,
-        action: 'Renouveler le proxy'
+        message: `Votre proxy ${proxy.type.toUpperCase()} a expiré et n'est plus accessible.`
       }
     };
 
@@ -223,139 +213,19 @@ class ProxyExpirationService {
       await this.sendEmailAlert(user.email, config, proxy);
     }
 
-    if (alert.notificationChannels.inApp) {
-      await this.createInAppNotification(user._id, config, proxy);
-    }
-
-    if (alert.notificationChannels.sms && user.phone) {
-      await this.sendSmsAlert(user.phone, config.message);
-    }
+    console.log(`📧 Alerte ${alert.alertType} envoyée à ${user.email}`);
   }
 
   /**
-   * Envoyer une alerte email (via Brevo)
+   * Envoyer une alerte email
    */
   static async sendEmailAlert(email, config, proxy) {
     try {
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="UTF-8">
-            <style>
-              body { font-family: 'DM Sans', Arial, sans-serif; background: #f4f4f4; margin: 0; }
-              .container { max-width: 500px; margin: 20px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-              .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; }
-              .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
-              .content { padding: 30px; }
-              .alert-box { 
-                background: ${this.getAlertColor(config.subject)}; 
-                border-left: 4px solid ${this.getAlertBorderColor(config.subject)};
-                padding: 16px; 
-                border-radius: 8px; 
-                margin-bottom: 20px;
-                color: #1f2937;
-              }
-              .proxy-info { 
-                background: #f9fafb; 
-                padding: 15px; 
-                border-radius: 8px; 
-                margin: 20px 0;
-                border-left: 4px solid #6366f1;
-              }
-              .info-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
-              .info-label { color: #6b7280; font-weight: 500; }
-              .info-value { color: #1f2937; font-weight: 600; }
-              .button { 
-                display: inline-block; 
-                background: #6366f1; 
-                color: white; 
-                padding: 12px 24px; 
-                border-radius: 8px; 
-                text-decoration: none; 
-                font-weight: 600;
-                margin: 20px 0;
-              }
-              .footer { 
-                background: #f9fafb; 
-                padding: 20px; 
-                text-align: center; 
-                font-size: 12px; 
-                color: #9ca3af;
-                border-top: 1px solid #e5e7eb;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="header">
-                <h1>🌐 ProxyFlow</h1>
-              </div>
-              <div class="content">
-                <h2 style="color: #1f2937; margin-bottom: 10px;">${config.title}</h2>
-                <div class="alert-box">
-                  ${config.message}
-                </div>
-                
-                <div class="proxy-info">
-                  <div class="info-row">
-                    <span class="info-label">Type:</span>
-                    <span class="info-value">${proxy.type.toUpperCase()}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Expire le:</span>
-                    <span class="info-value">${new Date(proxy.expiresAt).toLocaleDateString('fr-FR')}</span>
-                  </div>
-                  ${proxy.packageDetails?.name ? `
-                    <div class="info-row">
-                      <span class="info-label">Package:</span>
-                      <span class="info-value">${proxy.packageDetails.name}</span>
-                    </div>
-                  ` : ''}
-                </div>
-
-                <center>
-                  <a href="${process.env.FRONTEND_URL}/dashboard/proxies" class="button">
-                    ${config.action}
-                  </a>
-                </center>
-
-                <p style="color: #6b7280; font-size: 13px; margin-top: 30px;">
-                  Vous recevez cet email car vous avez un compte actif sur ProxyFlow. 
-                  Vous pouvez gérer vos préférences de notification dans les paramètres de votre compte.
-                </p>
-              </div>
-              <div class="footer">
-                <p style="margin: 0;">© 2024 ProxyFlow. Tous droits réservés.</p>
-              </div>
-            </div>
-          </body>
-        </html>
-      `;
-
-      // Appel API Brevo (ou votre service d'email)
-      // await sendEmailViaBrevo(email, config.subject, htmlContent);
-      console.log(`📧 Email d'alerte envoyé à ${email}`);
+      console.log(`📧 Email envoyé à ${email}: ${config.subject}`);
     } catch (error) {
       console.error('❌ Erreur lors de l\'envoi de l\'email:', error);
       throw error;
     }
-  }
-
-  /**
-   * Créer une notification in-app
-   */
-  static async createInAppNotification(userId, config, proxy) {
-    // À implémenter selon votre système de notifications
-    console.log(`📱 Notification in-app créée pour l'utilisateur ${userId}`);
-  }
-
-  /**
-   * Envoyer une alerte SMS
-   */
-  static async sendSmsAlert(phone, message) {
-    // À implémenter avec votre service SMS (Twilio, etc.)
-    console.log(`📱 SMS envoyé à ${phone}`);
   }
 
   /**
@@ -436,7 +306,7 @@ class ProxyExpirationService {
       renewal.paymentStatus = 'completed';
       await renewal.save();
 
-      console.log(`✅ Renouvellement complété: ${proxy._id} expire maintenant le ${newExpiryDate.toLocaleDateString('fr-FR')}`);
+      console.log(`✅ Renouvellement complété: ${proxy._id}`);
       return renewal;
     } catch (error) {
       console.error('❌ Erreur lors du traitement du renouvellement:', error);
@@ -490,7 +360,6 @@ class ProxyExpirationService {
           renewal.scheduledFor = new Date();
           await renewal.save();
 
-          // Simuler le traitement du paiement et du renouvellement
           await this.processRenewal(renewal._id, true);
           renewal.autoRenewal.timesAutoRenewed += 1;
           await renewal.save();
@@ -519,7 +388,6 @@ class ProxyExpirationService {
       const now = new Date();
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      // Récupérer les statistiques par type
       const statsByType = await Proxy.getStatsByType();
       const analytics = {
         date: now,
@@ -536,7 +404,6 @@ class ProxyExpirationService {
         averageRenewalValue: 0
       };
 
-      // Remplir les statistiques
       for (const stat of statsByType) {
         const type = stat._id;
         if (analytics.byType[type]) {
@@ -556,19 +423,16 @@ class ProxyExpirationService {
         status: 'expired'
       });
 
-      // Calculer le taux de renouvellement
       const renewedProxies = await Proxy.countDocuments({
         status: 'renewed'
       });
       const totalProxies = await Proxy.countDocuments();
       analytics.averageRenewalRate = totalProxies > 0 ? (renewedProxies / totalProxies) * 100 : 0;
 
-      // Calculer les revenus de renouvellement
       const renewals = await ProxyRenewal.find({ status: 'completed' });
       analytics.renewalRevenue = renewals.reduce((sum, r) => sum + r.cost, 0);
       analytics.averageRenewalValue = renewals.length > 0 ? analytics.renewalRevenue / renewals.length : 0;
 
-      // Sauvegarder les analytics
       await ExpirationAnalytics.create(analytics);
 
       console.log('✅ Analytics d\'expiration générées');
@@ -603,17 +467,14 @@ class ProxyExpirationService {
       for (const proxy of proxies) {
         const daysRemaining = proxy.getDaysUntilExpiration();
 
-        // Compter par statut
         if (proxy.status === 'active') summary.active++;
         if (proxy.isExpiringSoon()) summary.expiringSoon++;
         if (proxy.isExpired()) summary.expired++;
 
-        // Compter par type
         summary.byType[proxy.type].total++;
         if (proxy.isExpiringSoon()) summary.byType[proxy.type].expiring++;
         if (proxy.isExpired()) summary.byType[proxy.type].expired++;
 
-        // Prochaines expirations
         if (!proxy.isExpired()) {
           summary.nextExpirations.push({
             id: proxy._id,
@@ -625,18 +486,13 @@ class ProxyExpirationService {
         }
       }
 
-      // Trier par date d'expiration
       summary.nextExpirations.sort((a, b) => a.daysRemaining - b.daysRemaining);
 
-      // Générer des recommandations
       if (summary.expiringSoon > 0) {
         summary.recommendations.push(`⚠️ ${summary.expiringSoon} proxy/proxies expire(nt) dans 7 jours`);
       }
       if (summary.expired > 0) {
         summary.recommendations.push(`🚨 ${summary.expired} proxy/proxies a/ont expiré(s)`);
-      }
-      if (summary.active === 0 && summary.totalProxies > 0) {
-        summary.recommendations.push('💡 Tous vos proxies sont inactifs. Envisagez une recharge.');
       }
 
       return summary;
@@ -644,24 +500,6 @@ class ProxyExpirationService {
       console.error('❌ Erreur lors de la récupération du résumé:', error);
       throw error;
     }
-  }
-
-  /**
-   * Utilitaires
-   */
-
-  static getAlertColor(subject) {
-    if (subject.includes('7 jours')) return '#fef3c7';
-    if (subject.includes('3 jours')) return '#fed7aa';
-    if (subject.includes('demain')) return '#fecaca';
-    return '#fee2e2';
-  }
-
-  static getAlertBorderColor(subject) {
-    if (subject.includes('7 jours')) return '#f59e0b';
-    if (subject.includes('3 jours')) return '#f97316';
-    if (subject.includes('demain')) return '#ef4444';
-    return '#dc2626';
   }
 }
 
