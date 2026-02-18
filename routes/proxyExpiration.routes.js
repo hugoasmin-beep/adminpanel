@@ -5,8 +5,8 @@
 
 const express = require('express');
 const router = express.Router();
-const ProxyExpirationService = require('./proxyExpiration.service');
-const { Proxy, ExpirationAlert, ProxyRenewal } = require('./proxyExpiration.model');
+const ProxyExpirationService = require('../services/proxyExpiration.service'); // ✅ CORRIGÉ
+const { Proxy, ExpirationAlert, ProxyRenewal } = require('../models/proxyExpiration.model'); // ✅ CORRIGÉ
 
 /**
  * ===== MIDDLEWARE =====
@@ -125,7 +125,7 @@ router.get('/proxies/:proxyId', authMiddleware, async (req, res) => {
         locationInfo: proxy.locationInfo,
         stats: proxy.stats,
         renewalHistory: proxy.renewalHistory,
-        renewalCost: proxy.renewalCost(7, {}) // Coût pour 7 jours
+        renewalCost: proxy.renewalCost(7, {})
       }
     });
   } catch (error) {
@@ -240,7 +240,6 @@ router.get('/alerts/user/:userId', authMiddleware, async (req, res) => {
 /**
  * POST /api/alerts/create
  * Créer les alertes d'expiration
- * Admin only
  */
 router.post('/alerts/create', authMiddleware, async (req, res) => {
   try {
@@ -259,7 +258,6 @@ router.post('/alerts/create', authMiddleware, async (req, res) => {
 /**
  * POST /api/alerts/send
  * Envoyer les alertes en attente
- * Admin only
  */
 router.post('/alerts/send', authMiddleware, async (req, res) => {
   try {
@@ -437,7 +435,6 @@ router.get('/renewals/user/:userId', authMiddleware, async (req, res) => {
 /**
  * POST /api/admin/update-statuses
  * Mettre à jour les statuts des proxies
- * Admin only
  */
 router.post('/admin/update-statuses', authMiddleware, async (req, res) => {
   try {
@@ -455,7 +452,6 @@ router.post('/admin/update-statuses', authMiddleware, async (req, res) => {
 /**
  * POST /api/admin/process-auto-renewals
  * Traiter les renouvellements automatiques
- * Admin only
  */
 router.post('/admin/process-auto-renewals', authMiddleware, async (req, res) => {
   try {
@@ -474,7 +470,6 @@ router.post('/admin/process-auto-renewals', authMiddleware, async (req, res) => 
 /**
  * GET /api/admin/analytics
  * Obtenir les analytics d'expiration
- * Admin only
  */
 router.get('/admin/analytics', authMiddleware, async (req, res) => {
   try {
