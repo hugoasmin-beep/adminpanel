@@ -643,7 +643,7 @@ app.get('/api/countries', authMiddleware, async (req, res) => {
   try {
     const { pkg_id } = req.query;
     const data = await apiRequest('GET', '/countries', null, { pkg_id });
-    console.log('🌍 COUNTRIES sample:', JSON.stringify(Array.isArray(data) ? data[0] : data).slice(0, 300));
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -654,7 +654,7 @@ app.get('/api/cities', authMiddleware, async (req, res) => {
   try {
     const { country_id, pkg_id } = req.query;
     const data = await apiRequest('GET', '/cities', null, { country_id, pkg_id });
-    console.log('🏙️ CITIES sample:', JSON.stringify(Array.isArray(data) ? data[0] : data).slice(0, 300));
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -665,7 +665,7 @@ app.get('/api/service-providers', authMiddleware, async (req, res) => {
   try {
     const { city_id, pkg_id } = req.query;
     const data = await apiRequest('GET', '/service-providers', null, { city_id, pkg_id });
-    console.log('📡 PROVIDERS sample:', JSON.stringify(Array.isArray(data) ? data[0] : data).slice(0, 300));
+    
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
