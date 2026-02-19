@@ -2,381 +2,667 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Admin - Proxy Shop</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Admin Panel — ProxyFlow</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {margin:0; padding:0; box-sizing:border-box;}
-        body {font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); min-height:100vh; padding:20px;}
-        .container {max-width:1400px; margin:0 auto;}
-        .header {background:white; padding:20px 30px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.2); margin-bottom:30px; display:flex; justify-content:space-between; align-items:center;}
-        .header h1 {color:#667eea; font-size:28px; font-weight: 800;}
-        .brand-name-color {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .logout-btn {background:#f44336; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-size:14px;}
-        .stats-grid {display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px; margin-bottom:30px;}
-        .stat-card {background:white; padding:25px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.1); text-align:center;}
-        .stat-card h3 {color:#666; font-size:14px; margin-bottom:10px;}
-        .stat-card .number {font-size:36px; font-weight:bold; color:#667eea;}
-        .main-panel {background:white; padding:30px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.2);}
-        .tabs {display:flex; gap:10px; margin-bottom:30px; border-bottom:2px solid #f0f0f0;}
-        .tab {padding:12px 24px; background:none; border:none; cursor:pointer; font-size:16px; color:#666; border-bottom:3px solid transparent; transition:all 0.3s;}
-        .tab.active {color:#667eea; border-bottom-color:#667eea;}
-        .tab-content {display:none;}
-        .tab-content.active {display:block;}
-        .users-table {width:100%; border-collapse:collapse; margin-top:20px;}
-        .users-table th {background:#f8f9fa; padding:15px; text-align:left; font-weight:600; color:#333;}
-        .users-table td {padding:15px; border-bottom:1px solid #f0f0f0;}
-        .users-table tr:hover {background:#f8f9fa;}
-        .badge {padding:5px 10px; border-radius:20px; font-size:12px; font-weight:bold;}
-        .badge.admin {background:#ffd700; color:#333;}
-        .badge.user {background:#e3f2fd; color:#1976d2;}
-        .btn {padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-size:14px; margin:0 5px; transition:all 0.3s;}
-        .btn-success {background:#4caf50; color:white;}
-        .btn-danger {background:#f44336; color:white;}
-        .btn-primary {background:#667eea; color:white;}
-        .btn:hover {opacity:0.8; transform:translateY(-2px);}
-        .modal {display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;}
-        .modal.active {display:flex;}
-        .modal-content {background:white; padding:30px; border-radius:15px; width:90%; max-width:500px; box-shadow:0 20px 60px rgba(0,0,0,0.3);}
-        .modal-content h2 {margin-bottom:20px; color:#333;}
-        .form-group {margin-bottom:20px;}
-        .form-group label {display:block; margin-bottom:8px; color:#666; font-weight:500;}
-        .form-group input, .form-group textarea {width:100%; padding:12px; border:2px solid #e0e0e0; border-radius:8px; font-size:14px;}
-        .form-group input:focus, .form-group textarea:focus {outline:none; border-color:#667eea;}
-        .modal-buttons {display:flex; gap:10px; justify-content:flex-end; margin-top:20px;}
-        .login-container {max-width:400px; margin:100px auto; background:white; padding:40px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.2);}
-        .login-container h1 {text-align:center; color:#667eea; margin-bottom:30px;}
-        .alert {padding:12px; border-radius:8px; margin-bottom:20px; font-size:14px;}
-        .alert-success {background:#d4edda; color:#155724; border:1px solid #c3e6cb;}
-        .alert-error {background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;}
-        .loading {text-align:center; padding:40px; color:#666;}
-        /* Manual orders */
-        .status-badge {padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700; text-transform:uppercase;}
-        .status-pending {background:#fff3cd; color:#856404;}
-        .status-processing {background:#cce5ff; color:#004085;}
-        .status-delivered {background:#d4edda; color:#155724;}
-        .status-cancelled {background:#f8d7da; color:#721c24;}
-        .order-notes {font-size:12px; color:#888; margin-top:4px; font-style:italic; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-        .type-chip {display:inline-block; padding:3px 8px; border-radius:6px; font-size:11px; font-weight:700;}
-        .type-datacenter {background:#e3f0ff; color:#1a56db;}
-        .type-residential {background:#ecfdf5; color:#047857;}
-        .type-residential_pro {background:#f3e8ff; color:#6d28d9;}
-        .type-static_isp {background:#e0f7fa; color:#00796b;}
-        .stat-card.pending .number {color:#f59e0b;}
-        .deliver-modal-content {background:white; padding:30px; border-radius:15px; width:90%; max-width:550px; box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+    --p:#6366f1;--p2:#8b5cf6;--p3:rgba(99,102,241,0.15);
+    --bg:#0b0d14;--bg2:#111320;--bg3:#151928;
+    --card:#171b2d;--card2:#1c2035;--card3:#212540;
+    --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.04);
+    --text:#f1f5f9;--muted:#64748b;--muted2:#475569;
+    --success:#10b981;--danger:#ef4444;--warning:#f59e0b;--info:#3b82f6;
+    --radius:14px;--radius-sm:8px;
+}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;font-size:14px}
+h1,h2,h3{font-weight:700;letter-spacing:-.02em}
+input,textarea,select,button{font-family:inherit}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+
+/* LOGIN */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;background:radial-gradient(ellipse at 30% 20%,rgba(99,102,241,.15) 0%,transparent 60%),radial-gradient(ellipse at 70% 80%,rgba(139,92,246,.1) 0%,transparent 60%),var(--bg)}
+.login-box{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px 36px;box-shadow:0 40px 80px rgba(0,0,0,.6)}
+.login-icon{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--p),var(--p2));display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 14px;box-shadow:0 8px 24px rgba(99,102,241,.4)}
+.login-title{text-align:center;font-size:1.5rem;margin-bottom:4px}
+.login-sub{text-align:center;color:var(--muted);font-size:.85rem;margin-bottom:28px}
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.fl{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.fi,.ft{background:rgba(255,255,255,.04);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:11px 14px;font-size:.92rem;width:100%;outline:none;transition:border-color .2s,background .2s}
+.fi:focus,.ft:focus{border-color:var(--p);background:rgba(99,102,241,.06)}
+.fi::placeholder,.ft::placeholder{color:var(--muted2)}
+.fi[readonly]{opacity:.6;cursor:default}
+.ft{resize:vertical;min-height:90px;font-family:monospace;font-size:.82rem}
+.btn-login{width:100%;padding:13px;border:none;border-radius:var(--radius-sm);background:linear-gradient(135deg,var(--p),var(--p2));color:white;font-size:.92rem;font-weight:700;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(99,102,241,.35)}
+.btn-login:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(99,102,241,.45)}
+
+/* LAYOUT */
+#dashboard{display:none;min-height:100vh}
+.layout{display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:240px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:200;transition:transform .3s ease;overflow-y:auto}
+.sb-logo{padding:22px 20px 16px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--border)}
+.sb-logo-icon{width:36px;height:36px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--p),var(--p2));display:flex;align-items:center;justify-content:center;font-size:17px}
+.sb-logo-text{font-size:1rem;font-weight:800;background:linear-gradient(135deg,#818cf8,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sb-logo-badge{font-size:.6rem;font-weight:700;background:rgba(99,102,241,.2);color:#a5b4fc;border-radius:4px;padding:1px 6px;-webkit-text-fill-color:#a5b4fc}
+.sb-admin{padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.sb-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--p2));display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;flex-shrink:0}
+.sb-admin-info{min-width:0}
+.sb-admin-label{font-size:.63rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.sb-admin-email{font-size:.78rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-nav{padding:12px 10px;flex:1}
+.sb-sec-label{font-size:.62rem;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.1em;padding:10px 10px 6px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;font-size:.85rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all .18s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-item i{width:18px;text-align:center;font-size:.88rem;flex-shrink:0}
+.nav-item:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.nav-item.active{background:rgba(99,102,241,.15);color:#a5b4fc}
+.nav-item.active i{color:var(--p)}
+.nav-badge{margin-left:auto;background:var(--warning);color:#000;font-size:.6rem;font-weight:800;padding:2px 6px;border-radius:10px;min-width:18px;text-align:center}
+.sb-footer{padding:12px 10px;border-top:1px solid var(--border)}
+.sb-logout{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;font-size:.85rem;font-weight:600;color:var(--danger);cursor:pointer;transition:background .18s;border:none;background:none;width:100%}
+.sb-logout:hover{background:rgba(239,68,68,.08)}
+.sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:199}
+
+/* TOPBAR */
+.topbar{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:var(--card);border-bottom:1px solid var(--border);align-items:center;padding:0 16px;gap:12px;z-index:150}
+.topbar-menu{background:none;border:none;color:var(--text);font-size:1.1rem;cursor:pointer;padding:6px}
+.topbar-logo{font-size:1rem;font-weight:800;background:linear-gradient(135deg,#818cf8,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;flex:1}
+.topbar-badge{background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;font-size:.68rem;font-weight:700;padding:3px 8px;border-radius:6px}
+
+/* MAIN */
+.main{margin-left:240px;min-height:100vh;display:flex;flex-direction:column}
+.page-header{padding:26px 26px 0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.page-title{font-size:1.25rem;display:flex;align-items:center;gap:10px}
+.page-title i{color:var(--p)}
+.page-subtitle{color:var(--muted);font-size:.8rem;font-weight:400;margin-top:3px;margin-left:28px}
+.content{padding:20px 26px 40px;flex:1}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:22px}
+.stat-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;cursor:default}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;opacity:0;transition:opacity .2s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.stat-card:hover::before{opacity:1}
+.sc-purple::before{background:linear-gradient(90deg,var(--p),var(--p2))}
+.sc-green::before{background:linear-gradient(90deg,#10b981,#34d399)}
+.sc-blue::before{background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+.sc-yellow::before{background:linear-gradient(90deg,#f59e0b,#fbbf24)}
+.stat-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:.95rem;margin-bottom:14px}
+.si-p{background:rgba(99,102,241,.15);color:#a5b4fc}
+.si-g{background:rgba(16,185,129,.12);color:#34d399}
+.si-b{background:rgba(59,130,246,.12);color:#60a5fa}
+.si-y{background:rgba(245,158,11,.12);color:#fbbf24}
+.stat-label{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.stat-value{font-size:1.7rem;font-weight:800;letter-spacing:-.04em;line-height:1}
+.sv-p{color:#a5b4fc}.sv-g{color:#34d399}.sv-b{color:#60a5fa}.sv-y{color:#fbbf24}
+
+/* PANEL */
+.panel{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.panel-body{padding:0}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;min-width:500px}
+thead{background:rgba(255,255,255,.02)}
+th{padding:12px 16px;text-align:left;font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--border2);vertical-align:middle;font-size:.84rem}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(255,255,255,.02)}
+
+/* MOBILE CARDS */
+.card-list{display:none;padding:10px}
+.m-card{background:var(--card3);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px}
+.m-card:last-child{margin-bottom:0}
+.m-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap}
+.m-card-title{font-weight:700;font-size:.86rem;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mf label{font-size:.63rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:2px}
+.mf span{font-size:.82rem}
+.m-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.b-admin{background:rgba(250,204,21,.15);color:#fde047;border:1px solid rgba(250,204,21,.2)}
+.b-user{background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.2)}
+.sbadge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.s-pend{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
+.s-proc{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.2)}
+.s-deliv{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.2)}
+.s-canc{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.type-chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.68rem;font-weight:700;white-space:nowrap}
+.tc-dc{background:rgba(59,130,246,.12);color:#60a5fa}
+.tc-res{background:rgba(16,185,129,.12);color:#34d399}
+.tc-resp{background:rgba(139,92,246,.12);color:#c084fc}
+.tc-isp{background:rgba(6,182,212,.12);color:#22d3ee}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:7px;border:none;font-size:.8rem;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap;font-family:inherit}
+.btn-p{background:linear-gradient(135deg,var(--p),var(--p2));color:white}
+.btn-p:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.35)}
+.btn-s{background:rgba(16,185,129,.15);color:#34d399;border:1px solid rgba(16,185,129,.25)}
+.btn-s:hover{background:rgba(16,185,129,.25)}
+.btn-d{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.btn-d:hover{background:rgba(239,68,68,.2)}
+.btn-w{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
+.btn-w:hover{background:rgba(245,158,11,.22)}
+.btn-ghost{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{background:rgba(255,255,255,.1);color:var(--text)}
+.btn-sm{padding:5px 9px;font-size:.73rem}
+.refresh-btn{display:inline-flex;align-items:center;gap:7px;background:var(--p3);border:1px solid rgba(99,102,241,.25);color:#a5b4fc;padding:7px 13px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;transition:background .2s;font-family:inherit}
+.refresh-btn:hover{background:rgba(99,102,241,.25)}
+
+/* MISC */
+.balp{display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.2);border-radius:7px;padding:3px 8px;font-size:.8rem;font-weight:700}
+.email-cell{display:flex;align-items:center;gap:9px}
+.eavatar{width:27px;height:27px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--p2));display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0}
+.notes-cell{max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted);font-size:.76rem}
+.empty-state{padding:46px 20px;text-align:center;color:var(--muted)}
+.empty-state i{font-size:1.8rem;opacity:.3;display:block;margin-bottom:10px}
+.empty-state p{font-size:.84rem}
+.spin-wrap{padding:38px;text-align:center;color:var(--muted)}
+.spin{display:inline-block;width:22px;height:22px;border:2.5px solid rgba(255,255,255,.1);border-top-color:var(--p);border-radius:50%;animation:rot .8s linear infinite;vertical-align:middle}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ALERTS */
+.alert{padding:10px 13px;border-radius:8px;font-size:.82rem;margin-bottom:13px;display:flex;align-items:center;gap:8px}
+.al-s{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#34d399}
+.al-e{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#f87171}
+
+/* MODAL */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:500;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)}
+.modal.open{display:flex}
+.modal-box{background:var(--card2);border:1px solid var(--border);border-radius:18px;padding:26px;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;box-shadow:0 40px 80px rgba(0,0,0,.6)}
+.modal-box.wide{max-width:540px}
+.modal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-top h2{font-size:1.02rem;display:flex;align-items:center;gap:9px}
+.modal-top h2 i{color:var(--p)}
+.mclose{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:.88rem;display:flex;align-items:center;justify-content:center;transition:background .2s;flex-shrink:0}
+.mclose:hover{background:rgba(255,255,255,.12)}
+.modal-sub{color:var(--muted);font-size:.81rem;margin:-12px 0 18px 4px}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 16px;border-radius:10px;font-size:.82rem;font-weight:600;z-index:9999;display:flex;align-items:center;gap:8px;transform:translateY(80px);opacity:0;transition:all .3s ease;max-width:320px;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast.show{transform:translateY(0);opacity:1}
+.t-ok{background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.35);color:#34d399}
+.t-err{background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.35);color:#f87171}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+    .sidebar{transform:translateX(-100%)}
+    .sidebar.open{transform:translateX(0)}
+    .sb-overlay.open{display:block}
+    .topbar{display:flex}
+    .main{margin-left:0;padding-top:56px}
+    .content{padding:14px 12px 40px}
+    .page-header{padding:14px 12px 0}
+    .page-title{font-size:1.05rem}
+    .stats-grid{grid-template-columns:1fr 1fr;gap:10px}
+    .stat-value{font-size:1.4rem}
+    table{display:none}
+    .card-list{display:block}
+    .modal-box{padding:18px 16px}
+    .modal-foot{justify-content:stretch}
+    .modal-foot .btn{flex:1;justify-content:center}
+}
+@media(max-width:380px){
+    .stats-grid{grid-template-columns:1fr}
+    .login-box{padding:24px 18px}
+    .m-grid{grid-template-columns:1fr}
+}
     </style>
 </head>
 <body>
-    <!-- Login Screen -->
-    <div id="loginScreen" class="login-container">
-        <h1>🔐 Admin Panel - <span class="brand-name-color">Proxy Shop</span></h1>
+
+<div class="toast" id="toast"><i id="ti"></i><span id="tm"></span></div>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+    <div class="login-box">
+        <div class="login-icon">👑</div>
+        <h1 class="login-title">Admin Panel</h1>
+        <p class="login-sub">ProxyFlow — Espace administration</p>
         <div id="loginAlert"></div>
         <form id="loginForm">
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" id="loginEmail" required placeholder="admin@proxyshop.com">
+            <div class="fg">
+                <label class="fl">Email</label>
+                <input class="fi" type="email" id="loginEmail" required placeholder="admin@proxyflow.com">
             </div>
-            <div class="form-group">
-                <label>Mot de passe</label>
-                <input type="password" id="loginPassword" required placeholder="••••••••">
+            <div class="fg">
+                <label class="fl">Mot de passe</label>
+                <input class="fi" type="password" id="loginPassword" required placeholder="••••••••">
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%; padding:15px;">Se connecter</button>
+            <button type="submit" class="btn-login" id="loginBtn">Se connecter</button>
         </form>
     </div>
+</div>
 
-    <!-- Dashboard -->
-    <div id="dashboard" style="display:none;">
-        <div class="container">
-            <div class="header">
+<!-- DASHBOARD -->
+<div id="dashboard">
+    <!-- Mobile topbar -->
+    <div class="topbar">
+        <button class="topbar-menu" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+        <span class="topbar-logo">ProxyFlow</span>
+        <span class="topbar-badge">ADMIN</span>
+    </div>
+    <div class="sb-overlay" id="sbOverlay" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sb-logo">
+            <div class="sb-logo-icon">🌐</div>
+            <div><div class="sb-logo-text">ProxyFlow</div><span class="sb-logo-badge">ADMIN</span></div>
+        </div>
+        <div class="sb-admin">
+            <div class="sb-avatar" id="sbAvatarChar">A</div>
+            <div class="sb-admin-info">
+                <div class="sb-admin-label">Connecté en tant que</div>
+                <div class="sb-admin-email" id="adminEmail">—</div>
+            </div>
+        </div>
+        <nav class="sb-nav">
+            <div class="sb-sec-label">Navigation</div>
+            <button class="nav-item active" onclick="switchTab('users',this)"><i class="fas fa-users"></i> Utilisateurs</button>
+            <button class="nav-item" onclick="switchTab('transactions',this)"><i class="fas fa-exchange-alt"></i> Transactions</button>
+            <button class="nav-item" onclick="switchTab('recharges',this)"><i class="fas fa-credit-card"></i> Recharges</button>
+            <button class="nav-item" id="navOrders" onclick="switchTab('manualOrders',this)">
+                <i class="fas fa-box"></i> Commandes
+                <span class="nav-badge" id="navBadge" style="display:none">0</span>
+            </button>
+        </nav>
+        <div class="sb-footer">
+            <button class="sb-logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+
+        <!-- USERS TAB -->
+        <div id="tab-users" class="tab-content" style="display:block">
+            <div class="page-header">
                 <div>
-                    <h1>👑 Panel Admin - <span class="brand-name-color">Proxy Shop</span></h1>
-                    <p style="color:#666; margin-top:5px;">Bienvenue, <span id="adminEmail"></span></p>
+                    <div class="page-title"><i class="fas fa-users"></i> Utilisateurs</div>
+                    <div class="page-subtitle">Gestion des comptes et balances</div>
                 </div>
-                <button class="logout-btn" onclick="logout()">Déconnexion</button>
+                <button class="refresh-btn" onclick="loadUsers()"><i class="fas fa-sync-alt"></i> Actualiser</button>
             </div>
-
-            <div class="stats-grid">
-                <div class="stat-card"><h3>Total Utilisateurs</h3><div class="number" id="totalUsers">0</div></div>
-                <div class="stat-card"><h3>Total Proxies Vendus</h3><div class="number" id="totalProxies">0</div></div>
-                <div class="stat-card"><h3>Revenus Totaux</h3><div class="number" id="totalRevenue">$0</div></div>
-                <div class="stat-card pending"><h3>Commandes en attente</h3><div class="number" id="pendingOrders" style="color:#f59e0b;">0</div></div>
-            </div>
-
-            <div class="main-panel">
-                <div class="tabs">
-                    <button class="tab active" onclick="switchTab('users')">👥 Utilisateurs</button>
-                    <button class="tab" onclick="switchTab('transactions')">💰 Transactions</button>
-                    <button class="tab" onclick="switchTab('recharges')">💳 Recharges</button>
-                    <button class="tab" onclick="switchTab('manualOrders')">📦 Commandes Manuelles</button>
-                </div>
-
-                <!-- Users Tab -->
-                <div id="usersTab" class="tab-content active">
-                    <div class="loading" id="usersLoading">Chargement...</div>
-                    <table class="users-table" id="usersTable" style="display:none;">
-                        <thead>
-                            <tr>
-                                <th>Email</th>
-                                <th>Balance</th>
-                                <th>Rôle</th>
-                                <th>Inscription</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody"></tbody>
-                    </table>
-                </div>
-
-                <!-- Transactions Tab -->
-                <div id="transactionsTab" class="tab-content">
-                    <div class="loading">Transactions à venir...</div>
-                </div>
-
-                <!-- Recharges Tab -->
-                <div id="rechargesTab" class="tab-content">
-                    <div class="loading" id="rechargesLoading">Chargement...</div>
-                    <table class="users-table" id="rechargesTable" style="display:none;">
-                        <thead>
-                            <tr>
-                                <th>Utilisateur</th>
-                                <th>FaucetPay</th>
-                                <th>Montant ($)</th>
-                                <th>Date</th>
-                                <th>Statut</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="rechargesTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-                <!-- Manual Orders Tab -->
-                <div id="manualOrdersTab" class="tab-content">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                        <h3 style="color:#333;font-size:18px;">📦 Commandes Manuelles</h3>
-                        <button class="btn btn-primary" onclick="loadManualOrders()" style="font-size:13px;">🔄 Rafraîchir</button>
+            <div class="content">
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card sc-purple">
+                        <div class="stat-icon si-p"><i class="fas fa-users"></i></div>
+                        <div class="stat-label">Utilisateurs</div>
+                        <div class="stat-value sv-p" id="totalUsers">—</div>
                     </div>
-                    <div class="loading" id="manualOrdersLoading">Chargement...</div>
-                    <div style="overflow-x:auto;">
-                    <table class="users-table" id="manualOrdersTable" style="display:none;">
-                        <thead>
-                            <tr>
-                                <th>Client</th>
-                                <th>Type</th>
-                                <th>Volume</th>
-                                <th>Prix</th>
-                                <th>Date</th>
-                                <th>Notes client</th>
-                                <th>Statut</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="manualOrdersTableBody"></tbody>
-                    </table>
+                    <div class="stat-card sc-green">
+                        <div class="stat-icon si-g"><i class="fas fa-network-wired"></i></div>
+                        <div class="stat-label">Proxies vendus</div>
+                        <div class="stat-value sv-g" id="totalProxies">—</div>
+                    </div>
+                    <div class="stat-card sc-blue">
+                        <div class="stat-icon si-b"><i class="fas fa-dollar-sign"></i></div>
+                        <div class="stat-label">Revenus</div>
+                        <div class="stat-value sv-b" id="totalRevenue">—</div>
+                    </div>
+                    <div class="stat-card sc-yellow">
+                        <div class="stat-icon si-y"><i class="fas fa-clock"></i></div>
+                        <div class="stat-label">Commandes en attente</div>
+                        <div class="stat-value sv-y" id="pendingOrders">—</div>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-body">
+                        <div class="spin-wrap" id="usersLoading"><span class="spin"></span></div>
+                        <div class="table-wrap">
+                            <table id="usersTable" style="display:none">
+                                <thead><tr><th>Utilisateur</th><th>Balance</th><th>Rôle</th><th>Inscription</th><th>Actions</th></tr></thead>
+                                <tbody id="usersBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="card-list" id="usersCards"></div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Modal Crédit -->
-    <div id="creditModal" class="modal">
-        <div class="modal-content">
-            <h2>💵 Ajouter du crédit</h2>
-            <div id="creditAlert"></div>
-            <form id="creditForm">
-                <input type="hidden" id="creditUserId">
-                <div class="form-group"><label>Email utilisateur</label><input type="text" id="creditUserEmail" readonly></div>
-                <div class="form-group"><label>Montant ($)</label><input type="number" id="creditAmount" step="0.01" min="0.01" required placeholder="0.25"></div>
-                <div class="form-group"><label>Description (optionnel)</label><textarea id="creditDescription" rows="3" placeholder="Ex: Recharge manuelle"></textarea></div>
-                <div class="modal-buttons">
-                    <button type="button" class="btn btn-danger" onclick="closeModal()">Annuler</button>
-                    <button type="submit" class="btn btn-success">Ajouter</button>
+        <!-- TRANSACTIONS TAB -->
+        <div id="tab-transactions" class="tab-content" style="display:none">
+            <div class="page-header">
+                <div><div class="page-title"><i class="fas fa-exchange-alt"></i> Transactions</div></div>
+            </div>
+            <div class="content">
+                <div class="panel"><div class="empty-state"><i class="fas fa-chart-bar"></i><p>Module transactions à venir</p></div></div>
+            </div>
+        </div>
+
+        <!-- RECHARGES TAB -->
+        <div id="tab-recharges" class="tab-content" style="display:none">
+            <div class="page-header">
+                <div>
+                    <div class="page-title"><i class="fas fa-credit-card"></i> Recharges</div>
+                    <div class="page-subtitle">Demandes de recharge en attente</div>
                 </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Livraison Commande Manuelle -->
-    <div id="deliverModal" class="modal">
-        <div class="deliver-modal-content">
-            <h2>📦 Livrer la commande</h2>
-            <p style="color:#666;font-size:14px;margin-bottom:20px;">Collez ici les credentials / informations de connexion à transmettre au client.</p>
-            <div id="deliverAlert"></div>
-            <input type="hidden" id="deliverOrderId">
-            <div class="form-group">
-                <label>Informations de livraison (Host:Port:User:Pass ou autre)</label>
-                <textarea id="deliveryNotes" rows="5" style="width:100%;padding:12px;border:2px solid #e0e0e0;border-radius:8px;font-family:monospace;font-size:13px;" placeholder="ex: 1.2.3.4:8080:myuser:mypass&#10;ou&#10;host: proxy.example.com&#10;port: 8080&#10;user: john&#10;pass: secret123"></textarea>
+                <button class="refresh-btn" onclick="loadRecharges()"><i class="fas fa-sync-alt"></i> Actualiser</button>
             </div>
-            <div class="modal-buttons">
-                <button type="button" class="btn btn-danger" onclick="closeDeliverModal()">Annuler</button>
-                <button type="button" class="btn btn-success" onclick="confirmDeliver()">✅ Marquer comme livré</button>
+            <div class="content">
+                <div class="panel"><div class="panel-body">
+                    <div class="spin-wrap" id="rechargesLoading"><span class="spin"></span></div>
+                    <div class="table-wrap">
+                        <table id="rechargesTable" style="display:none">
+                            <thead><tr><th>Utilisateur</th><th>FaucetPay</th><th>Montant</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
+                            <tbody id="rechargesBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="card-list" id="rechargesCards"></div>
+                </div></div>
             </div>
         </div>
+
+        <!-- MANUAL ORDERS TAB -->
+        <div id="tab-manualOrders" class="tab-content" style="display:none">
+            <div class="page-header">
+                <div>
+                    <div class="page-title"><i class="fas fa-box"></i> Commandes Manuelles</div>
+                    <div class="page-subtitle">Traitement et livraison des commandes</div>
+                </div>
+                <button class="refresh-btn" onclick="loadManualOrders()"><i class="fas fa-sync-alt"></i> Actualiser</button>
+            </div>
+            <div class="content">
+                <div class="panel"><div class="panel-body">
+                    <div class="spin-wrap" id="ordersLoading"><span class="spin"></span></div>
+                    <div class="table-wrap">
+                        <table id="ordersTable" style="display:none">
+                            <thead><tr><th>Client</th><th>Type</th><th>Volume</th><th>Prix</th><th>Date</th><th>Notes</th><th>Statut</th><th>Actions</th></tr></thead>
+                            <tbody id="ordersBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="card-list" id="ordersCards"></div>
+                </div></div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- CREDIT MODAL -->
+<div class="modal" id="creditModal">
+    <div class="modal-box">
+        <div class="modal-top">
+            <h2><i class="fas fa-coins"></i> Ajouter du crédit</h2>
+            <button class="mclose" onclick="closeCreditModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="creditAlert"></div>
+        <form id="creditForm">
+            <input type="hidden" id="creditUserId">
+            <div class="fg"><label class="fl">Utilisateur</label><input class="fi" type="text" id="creditUserEmail" readonly></div>
+            <div class="fg"><label class="fl">Montant ($)</label><input class="fi" type="number" id="creditAmount" step="0.01" min="0.01" required placeholder="0.00"></div>
+            <div class="fg"><label class="fl">Description <small style="font-weight:400;text-transform:none;color:var(--muted2)">(optionnel)</small></label>
+                <textarea class="ft" id="creditDescription" rows="2" placeholder="Ex: Recharge manuelle..."></textarea></div>
+            <div class="modal-foot">
+                <button type="button" class="btn btn-ghost" onclick="closeCreditModal()">Annuler</button>
+                <button type="submit" class="btn btn-s"><i class="fas fa-check"></i> Ajouter</button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <script>
-        let token = localStorage.getItem('adminToken');
-        let currentUser = null;
+<!-- DELIVER MODAL -->
+<div class="modal" id="deliverModal">
+    <div class="modal-box wide">
+        <div class="modal-top">
+            <h2><i class="fas fa-truck"></i> Livrer la commande</h2>
+            <button class="mclose" onclick="closeDeliverModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <p class="modal-sub">Collez les credentials à transmettre (ip:port:user:pass ou texte libre)</p>
+        <div id="deliverAlert"></div>
+        <input type="hidden" id="deliverOrderId">
+        <div class="fg">
+            <label class="fl">Informations de livraison</label>
+            <textarea class="ft" id="deliveryNotes" rows="5" placeholder="1.2.3.4:8080:user:pass&#10;ou&#10;host: proxy.example.com&#10;port: 8080&#10;user: john&#10;pass: secret123"></textarea>
+        </div>
+        <div class="modal-foot">
+            <button type="button" class="btn btn-ghost" onclick="closeDeliverModal()">Annuler</button>
+            <button type="button" class="btn btn-s" onclick="confirmDeliver()"><i class="fas fa-paper-plane"></i> Livrer</button>
+        </div>
+    </div>
+</div>
 
-        // Login
-        document.getElementById('loginForm').addEventListener('submit', async e => {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            try {
-                const res = await fetch('/api/auth/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password})});
-                const data = await res.json();
-                if(!res.ok){showAlert('loginAlert', data.error || 'Erreur de connexion','error'); return;}
-                if(!data.user.isAdmin){showAlert('loginAlert', 'Accès refusé - Admin requis','error'); return;}
-                token = data.token; localStorage.setItem('adminToken', token); currentUser = data.user; showDashboard();
-            } catch(err){showAlert('loginAlert','Erreur: '+err.message,'error');}
-        });
+<script>
+let token = localStorage.getItem('adminToken');
+let currentUser = null;
 
-        // Logout
-        function logout(){localStorage.removeItem('adminToken'); token=null; currentUser=null; document.getElementById('dashboard').style.display='none'; document.getElementById('loginScreen').style.display='block';}
+/* ── Toast ── */
+function toast(msg, type='ok') {
+    const el = document.getElementById('toast');
+    document.getElementById('ti').className = type === 'ok' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
+    document.getElementById('tm').textContent = msg;
+    el.className = 'toast t-' + type + ' show';
+    setTimeout(() => el.className = 'toast t-' + type, 3200);
+}
+function showAlert(elId, msg, type) {
+    document.getElementById(elId).innerHTML = `<div class="alert al-${type==='success'?'s':'e'}"><i class="fas fa-${type==='success'?'check':'exclamation'}-circle"></i>${msg}</div>`;
+}
+function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-        // Dashboard
-        async function showDashboard(){document.getElementById('loginScreen').style.display='none'; document.getElementById('dashboard').style.display='block'; document.getElementById('adminEmail').textContent=currentUser.email; await loadStats(); await loadUsers(); await loadRecharges();}
+/* ── Sidebar ── */
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sbOverlay').classList.toggle('open');
+}
 
-        // Stats
-        async function loadStats(){try{const res=await fetch('/api/admin/stats',{headers:{'Authorization':`Bearer ${token}`}}); const data=await res.json(); document.getElementById('totalUsers').textContent=data.totalUsers||0; document.getElementById('totalProxies').textContent=data.totalProxies||0; document.getElementById('totalRevenue').textContent='$'+(data.totalRevenue||0).toFixed(2);}catch(err){console.error(err);}}
+/* ── Tabs ── */
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('tab-' + name).style.display = 'block';
+    if (btn) btn.classList.add('active');
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sbOverlay').classList.remove('open');
+    if (name === 'recharges') loadRecharges();
+    if (name === 'manualOrders') loadManualOrders();
+}
 
-        // Users
-        async function loadUsers(){try{const res=await fetch('/api/admin/users',{headers:{'Authorization':`Bearer ${token}`}}); const users=await res.json(); document.getElementById('usersLoading').style.display='none'; document.getElementById('usersTable').style.display='table'; const tbody=document.getElementById('usersTableBody'); tbody.innerHTML=users.map(u=>`<tr><td>${u.email}</td><td><strong>$${u.balance.toFixed(2)}</strong></td><td><span class="badge ${u.isAdmin?'admin':'user'}">${u.isAdmin?'Admin':'User'}</span></td><td>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td><td><button class="btn btn-success" onclick="openCreditModal('${u._id}','${u.email}')">+ Crédit</button>${!u.isAdmin?`<button class="btn btn-primary" onclick="promoteUser('${u._id}')">Promouvoir</button>`:''}</td></tr>`).join('');}catch(err){console.error(err);}}
+/* ── Auth ── */
+document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    btn.textContent = '...'; btn.disabled = true;
+    try {
+        const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }) });
+        const data = await res.json();
+        if (!res.ok) { showAlert('loginAlert', data.error || 'Erreur de connexion', 'error'); return; }
+        if (!data.user.isAdmin) { showAlert('loginAlert', 'Accès refusé — Admin requis', 'error'); return; }
+        token = data.token; localStorage.setItem('adminToken', token); currentUser = data.user; showDashboard();
+    } catch(err) { showAlert('loginAlert', 'Erreur: ' + err.message, 'error'); }
+    finally { btn.textContent = 'Se connecter'; btn.disabled = false; }
+});
 
-        // Recharges
-        async function loadRecharges(){try{const res=await fetch('/api/admin/recharges',{headers:{'Authorization':`Bearer ${token}`}}); const requests=await res.json(); document.getElementById('rechargesLoading').style.display='none'; document.getElementById('rechargesTable').style.display='table'; const tbody=document.getElementById('rechargesTableBody'); tbody.innerHTML=requests.map(r=>`<tr><td>${r.userEmail}</td><td>${r.faucetpayUsername}</td><td>$${r.amount.toFixed(2)}</td><td>${new Date(r.createdAt).toLocaleString('fr-FR')}</td><td>${r.status}</td><td>${r.status==='pending'?`<button class="btn btn-success" onclick="validateRecharge('${r._id}')">Valider</button> <button class="btn btn-danger" onclick="rejectRecharge('${r._id}')">Rejeter</button>`:''}</td></tr>`).join('');}catch(err){console.error(err);}}
+function logout() { localStorage.removeItem('adminToken'); token = null; currentUser = null; document.getElementById('dashboard').style.display = 'none'; document.getElementById('loginScreen').style.display = 'flex'; }
 
-        // Validate / Reject Recharge
-        async function validateRecharge(id){if(!confirm('Valider cette recharge?')) return; try{await fetch(`/api/admin/recharges/${id}/approve`,{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}}); loadRecharges(); loadUsers(); loadStats();}catch(err){alert(err.message);}}
-        async function rejectRecharge(id){if(!confirm('Rejeter cette recharge?')) return; try{await fetch(`/api/admin/recharges/${id}/reject`,{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}}); loadRecharges();}catch(err){alert(err.message);}}
+async function showDashboard() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    const email = currentUser.email;
+    document.getElementById('adminEmail').textContent = email;
+    document.getElementById('sbAvatarChar').textContent = email.charAt(0).toUpperCase();
+    await loadStats(); await loadUsers(); await loadManualOrders();
+}
 
-        // Credit modal
-        function openCreditModal(id,email){document.getElementById('creditUserId').value=id; document.getElementById('creditUserEmail').value=email; document.getElementById('creditAmount').value=''; document.getElementById('creditDescription').value=''; document.getElementById('creditAlert').innerHTML=''; document.getElementById('creditModal').classList.add('active');}
-        function closeModal(){document.getElementById('creditModal').classList.remove('active');}
-        document.getElementById('creditForm').addEventListener('submit',async e=>{e.preventDefault(); const userId=document.getElementById('creditUserId').value; const amount=parseFloat(document.getElementById('creditAmount').value); const description=document.getElementById('creditDescription').value; try{const res=await fetch('/api/admin/add-credit',{method:'POST', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}, body:JSON.stringify({userId,amount,description})}); const data=await res.json(); if(!res.ok){showAlert('creditAlert',data.error||'Erreur','error'); return;} showAlert('creditAlert',`✅ $${amount} ajouté avec succès!`,'success'); setTimeout(()=>{closeModal(); loadUsers(); loadStats();},1500);}catch(err){showAlert('creditAlert','Erreur: '+err.message,'error');}});
+/* ── Stats ── */
+async function loadStats() {
+    try {
+        const res = await fetch('/api/admin/stats', { headers: {'Authorization': `Bearer ${token}`} });
+        const d = await res.json();
+        document.getElementById('totalUsers').textContent = d.totalUsers || 0;
+        document.getElementById('totalProxies').textContent = d.totalProxies || 0;
+        document.getElementById('totalRevenue').textContent = '$' + (d.totalRevenue || 0).toFixed(2);
+    } catch(e) {}
+}
 
-        // Promote
-        async function promoteUser(id){if(!confirm('Promouvoir cet utilisateur en admin?')) return; try{await fetch('/api/admin/promote',{method:'POST', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}, body:JSON.stringify({userId:id})}); alert('✅ Utilisateur promu en admin!'); loadUsers();}catch(err){alert(err.message);}}
+/* ── Users ── */
+async function loadUsers() {
+    document.getElementById('usersLoading').style.display = 'block';
+    document.getElementById('usersTable').style.display = 'none';
+    document.getElementById('usersCards').innerHTML = '';
+    try {
+        const users = await (await fetch('/api/admin/users', { headers: {'Authorization': `Bearer ${token}`} })).json();
+        document.getElementById('usersLoading').style.display = 'none';
+        document.getElementById('usersTable').style.display = 'table';
+        document.getElementById('usersBody').innerHTML = users.map(u => `
+            <tr>
+                <td><div class="email-cell"><div class="eavatar">${u.email.charAt(0).toUpperCase()}</div><span>${esc(u.email)}</span></div></td>
+                <td><span class="balp"><i class="fas fa-dollar-sign" style="font-size:.65rem"></i>${u.balance.toFixed(2)}</span></td>
+                <td><span class="badge ${u.isAdmin?'b-admin':'b-user'}">${u.isAdmin?'👑 Admin':'User'}</span></td>
+                <td style="color:var(--muted);font-size:.76rem">${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
+                <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+                    <button class="btn btn-sm btn-s" onclick="openCreditModal('${u._id}','${esc(u.email)}')"><i class="fas fa-plus"></i> Crédit</button>
+                    ${!u.isAdmin?`<button class="btn btn-sm btn-w" onclick="promoteUser('${u._id}')"><i class="fas fa-crown"></i> Promouvoir</button>`:''}
+                </div></td>
+            </tr>`).join('') || '<tr><td colspan="5"><div class="empty-state"><i class="fas fa-users"></i><p>Aucun utilisateur</p></div></td></tr>';
+        document.getElementById('usersCards').innerHTML = users.map(u => `
+            <div class="m-card">
+                <div class="m-card-top">
+                    <div class="email-cell" style="min-width:0;flex:1"><div class="eavatar">${u.email.charAt(0).toUpperCase()}</div><span class="m-card-title">${esc(u.email)}</span></div>
+                    <span class="badge ${u.isAdmin?'b-admin':'b-user'}">${u.isAdmin?'👑 Admin':'User'}</span>
+                </div>
+                <div class="m-grid">
+                    <div class="mf"><label>Balance</label><span class="balp"><i class="fas fa-dollar-sign" style="font-size:.65rem"></i>${u.balance.toFixed(2)}</span></div>
+                    <div class="mf"><label>Inscription</label><span>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</span></div>
+                </div>
+                <div class="m-actions">
+                    <button class="btn btn-sm btn-s" onclick="openCreditModal('${u._id}','${esc(u.email)}')"><i class="fas fa-plus"></i> Crédit</button>
+                    ${!u.isAdmin?`<button class="btn btn-sm btn-w" onclick="promoteUser('${u._id}')"><i class="fas fa-crown"></i> Promouvoir</button>`:''}
+                </div>
+            </div>`).join('') || '<div class="empty-state"><i class="fas fa-users"></i><p>Aucun utilisateur</p></div>';
+    } catch(e) { console.error(e); }
+}
 
-        // Tabs
-        function switchTab(tab){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active')); event.target.classList.add('active'); document.getElementById(tab+'Tab').classList.add('active');}
+/* ── Recharges ── */
+async function loadRecharges() {
+    document.getElementById('rechargesLoading').style.display = 'block';
+    document.getElementById('rechargesTable').style.display = 'none';
+    document.getElementById('rechargesCards').innerHTML = '';
+    try {
+        const list = await (await fetch('/api/admin/recharges', { headers: {'Authorization': `Bearer ${token}`} })).json();
+        document.getElementById('rechargesLoading').style.display = 'none';
+        document.getElementById('rechargesTable').style.display = 'table';
+        const SC = { pending:'s-pend', approved:'s-deliv', rejected:'s-canc' };
+        document.getElementById('rechargesBody').innerHTML = list.map(r => `
+            <tr>
+                <td>${esc(r.userEmail)}</td>
+                <td><code style="font-size:.76rem;color:var(--muted)">${esc(r.faucetpayUsername)}</code></td>
+                <td><span class="balp">$${r.amount.toFixed(2)}</span></td>
+                <td style="color:var(--muted);font-size:.75rem">${new Date(r.createdAt).toLocaleString('fr-FR')}</td>
+                <td><span class="sbadge ${SC[r.status]||'s-pend'}">${r.status}</span></td>
+                <td>${r.status==='pending'?`<div style="display:flex;gap:5px"><button class="btn btn-sm btn-s" onclick="validateRecharge('${r._id}')"><i class="fas fa-check"></i> Valider</button><button class="btn btn-sm btn-d" onclick="rejectRecharge('${r._id}')"><i class="fas fa-times"></i></button></div>`:' <span style="color:var(--muted)">—</span>'}</td>
+            </tr>`).join('') || '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-credit-card"></i><p>Aucune recharge</p></div></td></tr>';
+        document.getElementById('rechargesCards').innerHTML = list.map(r => `
+            <div class="m-card">
+                <div class="m-card-top"><span class="m-card-title">${esc(r.userEmail)}</span><span class="sbadge ${SC[r.status]||'s-pend'}">${r.status}</span></div>
+                <div class="m-grid">
+                    <div class="mf"><label>FaucetPay</label><span>${esc(r.faucetpayUsername)}</span></div>
+                    <div class="mf"><label>Montant</label><span class="balp">$${r.amount.toFixed(2)}</span></div>
+                    <div class="mf"><label>Date</label><span>${new Date(r.createdAt).toLocaleDateString('fr-FR')}</span></div>
+                </div>
+                ${r.status==='pending'?`<div class="m-actions"><button class="btn btn-sm btn-s" onclick="validateRecharge('${r._id}')"><i class="fas fa-check"></i> Valider</button><button class="btn btn-sm btn-d" onclick="rejectRecharge('${r._id}')"><i class="fas fa-times"></i> Rejeter</button></div>`:''}
+            </div>`).join('') || '<div class="empty-state"><i class="fas fa-credit-card"></i><p>Aucune recharge</p></div>';
+    } catch(e) { console.error(e); }
+}
+async function validateRecharge(id) { if(!confirm('Valider ?')) return; await fetch(`/api/admin/recharges/${id}/approve`,{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}}); toast('Recharge validée ✓'); loadRecharges(); loadUsers(); loadStats(); }
+async function rejectRecharge(id) { if(!confirm('Rejeter ?')) return; await fetch(`/api/admin/recharges/${id}/reject`,{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}}); toast('Recharge rejetée','err'); loadRecharges(); }
 
-        // Alert
-        function showAlert(el,msg,type){const e=document.getElementById(el); e.innerHTML=`<div class="alert alert-${type==='error'?'error':'success'}">${msg}</div>`;}
-
-        // Init
-        if(token){fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}}).then(r=>r.json()).then(u=>{if(u.isAdmin){currentUser=u; showDashboard();}else{logout();}}).catch(()=>logout());}
-
-        // ── showDashboard override to also load manual orders
-        const _origShow = showDashboard;
-        async function showDashboard(){
-            document.getElementById('loginScreen').style.display='none';
-            document.getElementById('dashboard').style.display='block';
-            document.getElementById('adminEmail').textContent=currentUser.email;
-            await loadStats(); await loadUsers(); await loadRecharges(); await loadManualOrders();
+/* ── Manual Orders ── */
+const TC = {datacenter:'tc-dc',residential:'tc-res',residential_pro:'tc-resp',static_isp:'tc-isp'};
+const SL = {pending:'En attente',processing:'En cours',delivered:'Livré',cancelled:'Annulé'};
+const SC = {pending:'s-pend',processing:'s-proc',delivered:'s-deliv',cancelled:'s-canc'};
+function ordActions(o) {
+    if(o.status==='pending') return `<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-sm btn-w" onclick="markProcessing('${o._id}')"><i class="fas fa-cog"></i> En cours</button><button class="btn btn-sm btn-s" onclick="openDeliverModal('${o._id}')"><i class="fas fa-truck"></i> Livrer</button><button class="btn btn-sm btn-d" onclick="cancelOrder('${o._id}')"><i class="fas fa-times"></i></button></div>`;
+    if(o.status==='processing') return `<div style="display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-sm btn-s" onclick="openDeliverModal('${o._id}')"><i class="fas fa-truck"></i> Livrer</button><button class="btn btn-sm btn-d" onclick="cancelOrder('${o._id}')"><i class="fas fa-times"></i></button></div>`;
+    return `<span style="color:var(--muted);font-size:.74rem">—</span>`;
+}
+async function loadManualOrders() {
+    document.getElementById('ordersLoading').style.display = 'block';
+    document.getElementById('ordersTable').style.display = 'none';
+    document.getElementById('ordersCards').innerHTML = '';
+    try {
+        const orders = await (await fetch('/api/admin/manual-orders', { headers:{'Authorization':`Bearer ${token}`} })).json();
+        document.getElementById('ordersLoading').style.display = 'none';
+        document.getElementById('ordersTable').style.display = 'table';
+        const pend = orders.filter(o=>o.status==='pending').length;
+        document.getElementById('navBadge').textContent = pend;
+        document.getElementById('navBadge').style.display = pend > 0 ? 'inline' : 'none';
+        document.getElementById('pendingOrders').textContent = pend;
+        if(!orders.length) {
+            document.getElementById('ordersBody').innerHTML = '<tr><td colspan="8"><div class="empty-state"><i class="fas fa-box-open"></i><p>Aucune commande</p></div></td></tr>';
+            document.getElementById('ordersCards').innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>Aucune commande manuelle</p></div>';
+            return;
         }
+        document.getElementById('ordersBody').innerHTML = orders.map(o => `
+            <tr>
+                <td><div class="email-cell"><div class="eavatar">${(o.userEmail||'?').charAt(0).toUpperCase()}</div><span style="font-size:.82rem">${esc(o.userEmail)}</span></div></td>
+                <td><span class="type-chip ${TC[o.type]||''}">${esc(o.typeLabel||o.type)}</span></td>
+                <td style="font-weight:700">${esc(o.volume)}</td>
+                <td><span class="balp">$${o.totalPrice.toFixed(2)}</span></td>
+                <td style="color:var(--muted);font-size:.73rem">${new Date(o.createdAt).toLocaleString('fr-FR')}</td>
+                <td><div class="notes-cell" title="${esc(o.notes||'')}">${esc(o.notes||'—')}</div></td>
+                <td><span class="sbadge ${SC[o.status]||''}">${SL[o.status]||o.status}</span></td>
+                <td>${ordActions(o)}</td>
+            </tr>`).join('');
+        document.getElementById('ordersCards').innerHTML = orders.map(o => `
+            <div class="m-card">
+                <div class="m-card-top"><span class="m-card-title">${esc(o.userEmail)}</span><span class="sbadge ${SC[o.status]||''}">${SL[o.status]||o.status}</span></div>
+                <div class="m-grid">
+                    <div class="mf"><label>Type</label><span class="type-chip ${TC[o.type]||''}">${esc(o.typeLabel||o.type)}</span></div>
+                    <div class="mf"><label>Volume</label><span style="font-weight:700">${esc(o.volume)}</span></div>
+                    <div class="mf"><label>Prix</label><span class="balp">$${o.totalPrice.toFixed(2)}</span></div>
+                    <div class="mf"><label>Date</label><span style="font-size:.74rem">${new Date(o.createdAt).toLocaleDateString('fr-FR')}</span></div>
+                    ${o.notes?`<div class="mf" style="grid-column:1/-1"><label>Notes</label><span style="font-size:.76rem;color:var(--muted)">${esc(o.notes)}</span></div>`:''}
+                </div>
+                <div class="m-actions">${ordActions(o)}</div>
+            </div>`).join('');
+    } catch(e) { console.error(e); }
+}
+async function markProcessing(id) { const res = await fetch('/api/admin/manual-orders/'+id+'/processing',{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}}); if(!res.ok){toast((await res.json()).error||'Erreur','err');return;} toast('En cours ⚙️'); loadManualOrders(); }
+async function cancelOrder(id) { if(!confirm('Annuler et rembourser ?')) return; const res = await fetch('/api/admin/manual-orders/'+id+'/cancel',{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}}); const d = await res.json(); if(!res.ok){toast(d.error||'Erreur','err');return;} toast('Annulé — client remboursé'); loadManualOrders(); loadUsers(); }
 
-        // ── Manual Orders ──
-        async function loadManualOrders() {
-            try {
-                const res = await fetch('/api/admin/manual-orders', {headers:{'Authorization':`Bearer ${token}`}});
-                const orders = await res.json();
-                document.getElementById('manualOrdersLoading').style.display = 'none';
-                document.getElementById('manualOrdersTable').style.display = 'table';
+/* ── Credit modal ── */
+function openCreditModal(id, email) { document.getElementById('creditUserId').value=id; document.getElementById('creditUserEmail').value=email; document.getElementById('creditAmount').value=''; document.getElementById('creditDescription').value=''; document.getElementById('creditAlert').innerHTML=''; document.getElementById('creditModal').classList.add('open'); }
+function closeCreditModal() { document.getElementById('creditModal').classList.remove('open'); }
+document.getElementById('creditForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const res = await fetch('/api/admin/add-credit',{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({userId:document.getElementById('creditUserId').value,amount:parseFloat(document.getElementById('creditAmount').value),description:document.getElementById('creditDescription').value})});
+    const data = await res.json();
+    if(!res.ok){showAlert('creditAlert',data.error||'Erreur','error');return;}
+    showAlert('creditAlert','✅ Crédit ajouté !','success');
+    setTimeout(()=>{closeCreditModal();loadUsers();loadStats();toast('Crédit ajouté ✓');},1100);
+});
 
-                const pendingCount = orders.filter(o => o.status === 'pending').length;
-                // Update stat card if exists
-                const statEl = document.getElementById('pendingOrders');
-                if (statEl) statEl.textContent = pendingCount;
+/* ── Deliver modal ── */
+function openDeliverModal(id) { document.getElementById('deliverOrderId').value=id; document.getElementById('deliveryNotes').value=''; document.getElementById('deliverAlert').innerHTML=''; document.getElementById('deliverModal').classList.add('open'); }
+function closeDeliverModal() { document.getElementById('deliverModal').classList.remove('open'); }
+async function confirmDeliver() {
+    const notes = document.getElementById('deliveryNotes').value.trim();
+    if(!notes){showAlert('deliverAlert','Informations de livraison requises','error');return;}
+    const res = await fetch('/api/admin/manual-orders/'+document.getElementById('deliverOrderId').value+'/deliver',{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({deliveryNotes:notes})});
+    const data = await res.json();
+    if(!res.ok){showAlert('deliverAlert',data.error||'Erreur','error');return;}
+    showAlert('deliverAlert','✅ Livraison enregistrée !','success');
+    setTimeout(()=>{closeDeliverModal();loadManualOrders();toast('Commande livrée 📦');},1000);
+}
 
-                const tbody = document.getElementById('manualOrdersTableBody');
-                if (!orders.length) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:30px;">Aucune commande manuelle</td></tr>';
-                    return;
-                }
+async function promoteUser(id) { if(!confirm('Promouvoir en admin ?')) return; await fetch('/api/admin/promote',{method:'POST',headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({userId:id})}); toast('Promu admin 👑'); loadUsers(); }
 
-                const typeClass = {datacenter:'type-datacenter', residential:'type-residential', residential_pro:'type-residential_pro', static_isp:'type-static_isp'};
+/* ── Close modal on backdrop ── */
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
 
-                tbody.innerHTML = orders.map(o => {
-                    const statusClass = 'status-' + o.status;
-                    const statusLabel = {pending:'En attente', processing:'En cours', delivered:'Livré', cancelled:'Annulé'}[o.status] || o.status;
-                    const tc = typeClass[o.type] || '';
-                    const actions = o.status === 'pending'
-                        ? `<button class="btn btn-primary" onclick="markProcessing('${o._id}')" style="font-size:12px;padding:5px 10px;">⚙️ En cours</button>
-                           <button class="btn btn-success" onclick="openDeliverModal('${o._id}')" style="font-size:12px;padding:5px 10px;">📦 Livrer</button>
-                           <button class="btn btn-danger" onclick="cancelOrder('${o._id}')" style="font-size:12px;padding:5px 10px;">✖ Annuler</button>`
-                        : o.status === 'processing'
-                        ? `<button class="btn btn-success" onclick="openDeliverModal('${o._id}')" style="font-size:12px;padding:5px 10px;">📦 Livrer</button>
-                           <button class="btn btn-danger" onclick="cancelOrder('${o._id}')" style="font-size:12px;padding:5px 10px;">✖ Annuler</button>`
-                        : `<span style="color:#999;font-size:12px;">—</span>`;
-
-                    return `<tr>
-                        <td style="font-size:13px;">${o.userEmail}</td>
-                        <td><span class="type-chip ${tc}">${o.typeLabel}</span></td>
-                        <td style="font-weight:700;">${o.volume}</td>
-                        <td style="font-weight:700;color:#667eea;">$${o.totalPrice.toFixed(2)}</td>
-                        <td style="font-size:12px;color:#888;">${new Date(o.createdAt).toLocaleString('fr-FR')}</td>
-                        <td><div class="order-notes" title="${o.notes || ''}">${o.notes || '—'}</div></td>
-                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                        <td>${actions}</td>
-                    </tr>`;
-                }).join('');
-            } catch(err) { console.error(err); }
-        }
-
-        async function markProcessing(id) {
-            try {
-                const res = await fetch('/api/admin/manual-orders/' + id + '/processing', {method:'POST', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}});
-                if (!res.ok) { const d = await res.json(); alert(d.error || 'Erreur'); return; }
-                await loadManualOrders();
-            } catch(err) { alert(err.message); }
-        }
-
-        function openDeliverModal(id) {
-            document.getElementById('deliverOrderId').value = id;
-            document.getElementById('deliveryNotes').value = '';
-            document.getElementById('deliverAlert').innerHTML = '';
-            document.getElementById('deliverModal').classList.add('active');
-        }
-
-        function closeDeliverModal() {
-            document.getElementById('deliverModal').classList.remove('active');
-        }
-
-        async function confirmDeliver() {
-            const id = document.getElementById('deliverOrderId').value;
-            const notes = document.getElementById('deliveryNotes').value.trim();
-            if (!notes) { document.getElementById('deliverAlert').innerHTML = '<div class="alert alert-error">Veuillez entrer les informations de livraison</div>'; return; }
-
-            try {
-                const res = await fetch('/api/admin/manual-orders/' + id + '/deliver', {
-                    method: 'POST',
-                    headers: {'Authorization':`Bearer ${token}`, 'Content-Type':'application/json'},
-                    body: JSON.stringify({ deliveryNotes: notes })
-                });
-                const data = await res.json();
-                if (!res.ok) { document.getElementById('deliverAlert').innerHTML = '<div class="alert alert-error">' + (data.error || 'Erreur') + '</div>'; return; }
-                document.getElementById('deliverAlert').innerHTML = '<div class="alert alert-success">✅ Livraison enregistrée !</div>';
-                setTimeout(() => { closeDeliverModal(); loadManualOrders(); }, 1200);
-            } catch(err) { document.getElementById('deliverAlert').innerHTML = '<div class="alert alert-error">Erreur: ' + err.message + '</div>'; }
-        }
-
-        async function cancelOrder(id) {
-            if (!confirm('Annuler cette commande et rembourser le client ?')) return;
-            try {
-                const res = await fetch('/api/admin/manual-orders/' + id + '/cancel', {method:'POST', headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'}});
-                const data = await res.json();
-                if (!res.ok) { alert(data.error || 'Erreur'); return; }
-                alert('✅ Commande annulée et client remboursé ($' + (data.newBalance || 0).toFixed(2) + ')');
-                await loadManualOrders(); await loadUsers();
-            } catch(err) { alert(err.message); }
-        }
-    </script>
+/* ── Init ── */
+if(token){fetch('/api/auth/me',{headers:{'Authorization':`Bearer ${token}`}}).then(r=>r.json()).then(u=>{if(u.isAdmin){currentUser=u;showDashboard();}else logout();}).catch(logout);}
+</script>
 </body>
 </html>
