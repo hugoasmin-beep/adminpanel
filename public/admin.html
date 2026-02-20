@@ -643,20 +643,57 @@
 
 <!-- Deliver Modal -->
 <div class="modal-overlay" id="deliverModal">
-    <div class="modal-box">
+    <div class="modal-box" style="max-width:520px;">
         <div class="modal-title">📦 Livrer la commande</div>
-        <div class="modal-sub">Collez les credentials à transmettre au client.</div>
+        <div class="modal-sub">Renseignez les informations du proxy à livrer au client.</div>
         <div id="deliverAlert"></div>
         <input type="hidden" id="deliverOrderId">
-        <div class="form-group">
-            <label class="form-label">Informations de connexion</label>
-            <textarea id="deliveryNotes" class="form-control" rows="5"
-                style="font-family:monospace;font-size:0.82rem;"
-                placeholder="ex: 1.2.3.4:8080:user:pass&#10;ou&#10;host: proxy.example.com&#10;port: 8080&#10;user: john&#10;pass: secret123"></textarea>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Type de connexion</label>
+                <select id="deliverProtocol" class="form-control">
+                    <option value="http">HTTP</option>
+                    <option value="socks5">SOCKS5</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Expiration (défaut : +30j)</label>
+                <input type="date" id="deliverExpiry" class="form-control">
+            </div>
         </div>
+
+        <div style="display:grid;grid-template-columns:1fr 110px;gap:14px;margin-bottom:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Hôte / IP</label>
+                <input type="text" id="deliverHost" class="form-control" placeholder="1.2.3.4 ou proxy.example.com">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Port</label>
+                <input type="number" id="deliverPort" class="form-control" placeholder="8080">
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Nom d'utilisateur</label>
+                <input type="text" id="deliverUsername" class="form-control" placeholder="user (optionnel)">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Mot de passe</label>
+                <input type="text" id="deliverPassword" class="form-control" placeholder="pass (optionnel)">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Notes supplémentaires (optionnel)</label>
+            <textarea id="deliveryNotes" class="form-control" rows="2"
+                placeholder="Informations complémentaires pour le client..."></textarea>
+        </div>
+
         <div class="modal-actions">
             <button type="button" class="btn btn-danger" onclick="closeModal('deliverModal')">Annuler</button>
-            <button type="button" class="btn btn-success" onclick="confirmDeliver()"><i class="fas fa-check"></i> Marquer livré</button>
+            <button type="button" class="btn btn-success" onclick="confirmDeliver()"><i class="fas fa-paper-plane"></i> Livrer</button>
         </div>
     </div>
 </div>
@@ -983,16 +1020,32 @@ document.getElementById('creditForm').addEventListener('submit', async e => {
 /* ── DELIVER MODAL ── */
 function openDeliverModal(id) {
     document.getElementById('deliverOrderId').value = id;
+    document.getElementById('deliverHost').value = '';
+    document.getElementById('deliverPort').value = '';
+    document.getElementById('deliverUsername').value = '';
+    document.getElementById('deliverPassword').value = '';
+    document.getElementById('deliverProtocol').value = 'http';
     document.getElementById('deliveryNotes').value = '';
     document.getElementById('deliverAlert').innerHTML = '';
+    // Date d'expiration par défaut : aujourd'hui + 30 jours
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    document.getElementById('deliverExpiry').value = d.toISOString().slice(0, 10);
     openModal('deliverModal');
 }
 async function confirmDeliver() {
-    const id    = document.getElementById('deliverOrderId').value;
-    const notes = document.getElementById('deliveryNotes').value.trim();
-    if (!notes) { showAlert('deliverAlert', 'Veuillez entrer les informations de livraison', 'error'); return; }
+    const id       = document.getElementById('deliverOrderId').value;
+    const host     = document.getElementById('deliverHost').value.trim();
+    const port     = document.getElementById('deliverPort').value.trim();
+    const username = document.getElementById('deliverUsername').value.trim();
+    const password = document.getElementById('deliverPassword').value.trim();
+    const protocol = document.getElementById('deliverProtocol').value;
+    const expiry   = document.getElementById('deliverExpiry').value;
+    const notes    = document.getElementById('deliveryNotes').value.trim();
+    if (!host || !port) { showAlert('deliverAlert', 'Hôte et port sont requis', 'error'); return; }
     try {
-        const res  = await fetch('/api/admin/manual-orders/' + id + '/deliver', { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body:JSON.stringify({ deliveryNotes: notes }) });
+        const payload = { host, port: parseInt(port), username, password, protocol, expiresAt: expiry || null, deliveryNotes: notes };
+        const res  = await fetch('/api/admin/manual-orders/' + id + '/deliver', { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body:JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) { showAlert('deliverAlert', data.error || 'Erreur', 'error'); return; }
         showAlert('deliverAlert', '✅ Livraison enregistrée !', 'success');
