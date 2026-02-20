@@ -1446,10 +1446,10 @@ app.post('/api/admin/manual-orders/:id/processing', authMiddleware, adminMiddlew
   }
 });
 
-// Livrer une commande (marquer delivered + ajouter notes)
+// Livrer une commande (marquer delivered + ajouter proxy structuré)
 app.post('/api/admin/manual-orders/:id/deliver', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { deliveryNotes } = req.body;
+    const { host, port, username, password, protocol, expiresAt, deliveryNotes } = req.body;
     const order = await ManualOrder.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Commande non trouvée' });
 
@@ -1457,24 +1457,48 @@ app.post('/api/admin/manual-orders/:id/deliver', authMiddleware, adminMiddleware
       return res.status(400).json({ error: 'Commande déjà livrée' });
     }
 
+    if (!host || !port) {
+      return res.status(400).json({ error: 'Hôte et port requis pour la livraison' });
+    }
+
     order.status = 'delivered';
     order.deliveryNotes = deliveryNotes || '';
     order.updatedAt = new Date();
     await order.save();
 
-    // Enregistrer un proxy manuel dans ProxyPurchase pour que le client le voit dans "Mes proxies"
-    if (deliveryNotes) {
-      await new ProxyPurchase({
-        userId: order.userId,
-        packageType: order.type,
-        price: order.totalPrice,
-        host: deliveryNotes, // les credentials/infos de connexion dans le champ host
-        port: 0,
-        username: '',
-        password: '',
-        protocol: 'http',
-        expiresAt: null
-      }).save();
+    // Calculer la date d'expiration (fournie ou 30j par défaut)
+    const computedExpiry = expiresAt
+      ? new Date(expiresAt)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Enregistrer le proxy dans ProxyPurchase pour que le client le voit dans "Mes proxies"
+    await new ProxyPurchase({
+      userId: order.userId,
+      packageType: order.type,
+      price: order.totalPrice,
+      host: host.trim(),
+      port: parseInt(port) || 0,
+      username: username ? username.trim() : '',
+      password: password ? password.trim() : '',
+      protocol: protocol || 'http',
+      expiresAt: computedExpiry
+    }).save();
+
+    // Notifier le client par email
+    try {
+      const user = await User.findById(order.userId).select('email');
+      if (user) {
+        const protoLabel = (protocol || 'http').toUpperCase();
+        const credStr = (username && password) ? `${username}:${password}@` : '';
+        const connStr = `${(protocol||'http').toLowerCase()}://${credStr}${host}:${port}`;
+        await sendEmailViaBrevo(
+          user.email,
+          `✅ Votre commande proxy est livrée !`,
+          `<html><body style="font-family:Arial,sans-serif;padding:20px;background:#f4f4f4"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:30px"><h2 style="color:#6366f1">✅ Commande livrée !</h2><p>Votre proxy <strong>${order.typeLabel}</strong> est prêt.</p><table style="width:100%;border-collapse:collapse;margin-top:12px"><tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Type</td><td style="padding:8px;font-weight:bold">${protoLabel}</td></tr><tr><td style="padding:8px;color:#666">Hôte:Port</td><td style="padding:8px;font-family:monospace">${host}:${port}</td></tr>${username?`<tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Identifiant</td><td style="padding:8px;font-family:monospace">${username}</td></tr><tr><td style="padding:8px;color:#666">Mot de passe</td><td style="padding:8px;font-family:monospace">${password}</td></tr>`:''}${computedExpiry?`<tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Expire le</td><td style="padding:8px">${computedExpiry.toLocaleDateString('fr-FR')}</td></tr>`:''}</table>${deliveryNotes?`<p style="margin-top:16px;color:#555">${deliveryNotes}</p>`:''}<div style="background:#f0f0ff;border-radius:8px;padding:12px;margin-top:16px;font-family:monospace;font-size:.85rem;word-break:break-all">${connStr}</div></div></body></html>`
+        );
+      }
+    } catch(emailErr) {
+      console.error('Email delivery notification error:', emailErr.message);
     }
 
     res.json({ success: true, message: 'Commande livrée avec succès' });
