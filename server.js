@@ -1185,6 +1185,7 @@ const RechargeSchema = new mongoose.Schema({
   amount: { type: Number, required: true },
   faucetpayUsername: { type: String, required: true },
   status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  expiresAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -1627,7 +1628,8 @@ app.post('/api/cryptapi/create', authMiddleware, async (req, res) => {
     const recharge = new Recharge({
       userId: req.user._id,
       amount,
-      faucetpayUsername: `CryptAPI | ${coinInfo.label} | ${addressIn.slice(0, 12)}...`
+      faucetpayUsername: `CryptAPI | ${coinInfo.label} | ${addressIn.slice(0, 12)}...`,
+      expiresAt: payment.expiresAt
     });
     await recharge.save();
 
