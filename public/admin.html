@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Admin — Proxy Shop</title>
+    <title>Admin Panel — Proxy Shop</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -394,7 +394,7 @@
         <div class="login-logo">
             <div class="icon">👑</div>
             <h1>Admin Panel</h1>
-            <p>Proxy Shop — Espace Administrateur</p>
+            <p>Proxy Shop — Admin Area</p>
         </div>
         <div id="loginAlert"></div>
         <form id="loginForm">
@@ -403,7 +403,7 @@
                 <input type="email" id="loginEmail" class="form-control" required placeholder="admin@proxyshop.com">
             </div>
             <div class="form-group" style="margin-bottom:24px;">
-                <label class="form-label">Mot de passe</label>
+                <label class="form-label">Password</label>
                 <input type="password" id="loginPassword" class="form-control" required placeholder="••••••••">
             </div>
             <button type="submit" class="login-btn">Se connecter →</button>
@@ -425,14 +425,14 @@
         </div>
         <nav class="nav-menu">
             <button class="nav-item active" onclick="switchTab('users', this)">
-                <i class="fas fa-users"></i> Utilisateurs
+                <i class="fas fa-users"></i> Users
             </button>
             <button class="nav-item" onclick="switchTab('recharges', this)">
                 <i class="fas fa-credit-card"></i> Recharges
                 <span class="nav-badge hidden" id="navBadgeRecharges">0</span>
             </button>
             <button class="nav-item" onclick="switchTab('manualOrders', this)">
-                <i class="fas fa-box"></i> Commandes
+                <i class="fas fa-box"></i> Orders
                 <span class="nav-badge hidden" id="navBadgeOrders">0</span>
             </button>
             <button class="nav-item" onclick="switchTab('transactions', this)">
@@ -458,7 +458,7 @@
         <div class="topbar">
             <div style="display:flex;align-items:center;gap:12px;">
                 <button class="hamburger" onclick="openSidebar()"><i class="fas fa-bars"></i></button>
-                <span class="topbar-title" id="topbarTitle">Utilisateurs</span>
+                <span class="topbar-title" id="topbarTitle">Users</span>
             </div>
             <div class="topbar-right">
                 <button class="refresh-btn" onclick="refreshAll()">
@@ -474,7 +474,7 @@
                 <div class="stat-card">
                     <div class="stat-icon purple"><i class="fas fa-users"></i></div>
                     <div>
-                        <div class="stat-label">Utilisateurs</div>
+                        <div class="stat-label">Users</div>
                         <div class="stat-value" id="totalUsers">—</div>
                     </div>
                 </div>
@@ -505,13 +505,13 @@
             <div class="panel">
                 <div class="tab-bar">
                     <button class="tab-btn active" id="tab-users" onclick="switchTab('users', this)">
-                        <i class="fas fa-users"></i> Utilisateurs
+                        <i class="fas fa-users"></i> Users
                     </button>
                     <button class="tab-btn" id="tab-recharges" onclick="switchTab('recharges', this)">
                         <i class="fas fa-credit-card"></i> Recharges
                     </button>
                     <button class="tab-btn" id="tab-manualOrders" onclick="switchTab('manualOrders', this)">
-                        <i class="fas fa-box"></i> Commandes
+                        <i class="fas fa-box"></i> Orders
                     </button>
                     <button class="tab-btn" id="tab-transactions" onclick="switchTab('transactions', this)">
                         <i class="fas fa-receipt"></i> Transactions
@@ -529,10 +529,10 @@
                         <table>
                             <thead><tr>
                                 <th>Email</th>
-                                <th>Solde</th>
+                                <th>Balance</th>
                                 <th>Rôle</th>
-                                <th>Email vérifié</th>
-                                <th>Inscription</th>
+                                <th>Email Verified</th>
+                                <th>Registered</th>
                                 <th>Actions</th>
                             </tr></thead>
                             <tbody id="usersTableBody"></tbody>
@@ -556,7 +556,7 @@
                                 <th>FaucetPay</th>
                                 <th>Montant</th>
                                 <th>Date</th>
-                                <th>Statut</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr></thead>
                             <tbody id="rechargesTableBody"></tbody>
@@ -581,7 +581,7 @@
                                 <th>Prix</th>
                                 <th>Date</th>
                                 <th>Notes</th>
-                                <th>Statut</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr></thead>
                             <tbody id="ordersTableBody"></tbody>
@@ -598,7 +598,7 @@
                     <div class="desktop-table table-wrap" id="transactionsTableWrap" style="display:none;">
                         <table>
                             <thead><tr>
-                                <th>Utilisateur</th>
+                                <th>User</th>
                                 <th>Type</th>
                                 <th>Montant</th>
                                 <th>Description</th>
@@ -620,7 +620,7 @@
 <!-- Credit Modal -->
 <div class="modal-overlay" id="creditModal">
     <div class="modal-box">
-        <div class="modal-title">💵 Ajouter du crédit</div>
+        <div class="modal-title">💵 Add Credit</div>
         <div class="modal-sub" id="creditModalSub">—</div>
         <div id="creditAlert"></div>
         <form id="creditForm">
@@ -631,11 +631,11 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Description (optionnel)</label>
-                <textarea id="creditDescription" class="form-control" rows="2" placeholder="Recharge manuelle..."></textarea>
+                <textarea id="creditDescription" class="form-control" rows="2" placeholder="Manual recharge..."></textarea>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-danger" onclick="closeModal('creditModal')">Annuler</button>
-                <button type="submit" class="btn btn-success"><i class="fas fa-plus"></i> Ajouter</button>
+                <button type="button" class="btn btn-danger" onclick="closeModal('creditModal')">Cancel</button>
+                <button type="submit" class="btn btn-success"><i class="fas fa-plus"></i> Add</button>
             </div>
         </form>
     </div>
@@ -644,14 +644,14 @@
 <!-- Deliver Modal -->
 <div class="modal-overlay" id="deliverModal">
     <div class="modal-box" style="max-width:520px;">
-        <div class="modal-title">📦 Livrer la commande</div>
-        <div class="modal-sub">Renseignez les informations du proxy à livrer au client.</div>
+        <div class="modal-title">📦 Deliver Order</div>
+        <div class="modal-sub">Fill in the proxy details to deliver to the customer.</div>
         <div id="deliverAlert"></div>
         <input type="hidden" id="deliverOrderId">
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
             <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Type de connexion</label>
+                <label class="form-label">Connection type</label>
                 <select id="deliverProtocol" class="form-control">
                     <option value="http">HTTP</option>
                     <option value="socks5">SOCKS5</option>
@@ -676,11 +676,11 @@
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
             <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Nom d'utilisateur</label>
+                <label class="form-label">Username</label>
                 <input type="text" id="deliverUsername" class="form-control" placeholder="user (optionnel)">
             </div>
             <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Mot de passe</label>
+                <label class="form-label">Password</label>
                 <input type="text" id="deliverPassword" class="form-control" placeholder="pass (optionnel)">
             </div>
         </div>
@@ -692,7 +692,7 @@
         </div>
 
         <div class="modal-actions">
-            <button type="button" class="btn btn-danger" onclick="closeModal('deliverModal')">Annuler</button>
+            <button type="button" class="btn btn-danger" onclick="closeModal('deliverModal')">Cancel</button>
             <button type="button" class="btn btn-success" onclick="confirmDeliver()"><i class="fas fa-paper-plane"></i> Livrer</button>
         </div>
     </div>
@@ -722,7 +722,7 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
     try {
         const res  = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}) });
         const data = await res.json();
-        if (!res.ok) { showAlert('loginAlert', data.error || 'Erreur de connexion', 'error'); return; }
+        if (!res.ok) { showAlert('loginAlert', data.error || 'Connection error', 'error'); return; }
         if (!data.user.isAdmin) { showAlert('loginAlert', 'Accès refusé — Admin requis', 'error'); return; }
         token = data.token;
         localStorage.setItem('adminToken', token);
@@ -777,7 +777,7 @@ function switchTab(tab, btn) {
     if (btn) {
         btn.classList.add('active');
         // Sync sidebar/tabbar
-        const titles = { users:'Utilisateurs', recharges:'Recharges', manualOrders:'Commandes Manuelles', transactions:'Transactions' };
+        const titles = { users:'Users', recharges:'Recharges', manualOrders:'Manual Orders', transactions:'Transactions' };
         document.getElementById('topbarTitle').textContent = titles[tab] || tab;
     }
     closeSidebar();
@@ -798,10 +798,10 @@ async function loadUsers() {
                 <td style="font-weight:600;">${u.email}</td>
                 <td><strong style="color:#34d399;">$${u.balance.toFixed(2)}</strong></td>
                 <td><span class="badge ${u.isAdmin ? 'badge-admin' : 'badge-user'}">${u.isAdmin ? '👑 Admin' : 'User'}</span></td>
-                <td>${u.isEmailVerified ? '<span style="color:#34d399;font-size:0.8rem;">✔ Vérifié</span>' : '<span style="color:#f87171;font-size:0.8rem;">✗ Non vérifié</span>'}</td>
-                <td style="color:var(--muted);font-size:0.8rem;">${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
+                <td>${u.isEmailVerified ? '<span style="color:#34d399;font-size:0.8rem;">✔ Verified</span>' : '<span style="color:#f87171;font-size:0.8rem;">✗ Not verified</span>'}</td>
+                <td style="color:var(--muted);font-size:0.8rem;">${new Date(u.createdAt).toLocaleDateString('en-GB')}</td>
                 <td>
-                    <button class="btn btn-success" onclick="openCreditModal('${u._id}','${u.email}')"><i class="fas fa-plus"></i> Crédit</button>
+                    <button class="btn btn-success" onclick="openCreditModal('${u._id}','${u.email}')"><i class="fas fa-plus"></i> Credit</button>
                     ${!u.isAdmin ? `<button class="btn btn-warning" onclick="promoteUser('${u._id}')"><i class="fas fa-crown"></i></button>` : ''}
                 </td>
             </tr>`).join('');
@@ -813,14 +813,14 @@ async function loadUsers() {
                     <div class="mobile-card-title">${u.email}</div>
                     <span class="badge ${u.isAdmin ? 'badge-admin' : 'badge-user'}">${u.isAdmin ? '👑' : 'User'}</span>
                 </div>
-                <div class="mobile-card-row"><span>Solde</span><span style="color:#34d399;font-weight:700;">$${u.balance.toFixed(2)}</span></div>
-                <div class="mobile-card-row"><span>Email</span><span>${u.isEmailVerified ? '✔ Vérifié' : '✗ Non vérifié'}</span></div>
-                <div class="mobile-card-row"><span>Inscription</span><span>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</span></div>
+                <div class="mobile-card-row"><span>Balance</span><span style="color:#34d399;font-weight:700;">$${u.balance.toFixed(2)}</span></div>
+                <div class="mobile-card-row"><span>Email</span><span>${u.isEmailVerified ? '✔ Verified' : '✗ Not verified'}</span></div>
+                <div class="mobile-card-row"><span>Registered</span><span>${new Date(u.createdAt).toLocaleDateString('en-GB')}</span></div>
                 <div class="mobile-card-actions">
-                    <button class="btn btn-success" onclick="openCreditModal('${u._id}','${u.email}')"><i class="fas fa-plus"></i> Crédit</button>
+                    <button class="btn btn-success" onclick="openCreditModal('${u._id}','${u.email}')"><i class="fas fa-plus"></i> Credit</button>
                     ${!u.isAdmin ? `<button class="btn btn-warning" onclick="promoteUser('${u._id}')"><i class="fas fa-crown"></i> Promouvoir</button>` : ''}
                 </div>
-            </div>`).join('') || '<div class="empty-state"><div class="empty-icon">👥</div>Aucun utilisateur</div>';
+            </div>`).join('') || '<div class="empty-state"><div class="empty-icon">👥</div>No users</div>';
     } catch(e) { console.error(e); }
 }
 
@@ -847,13 +847,13 @@ async function loadRecharges() {
                 <td style="font-weight:600;">${r.userEmail}</td>
                 <td style="color:var(--muted);font-size:0.8rem;">${r.faucetpayUsername}</td>
                 <td><strong style="color:#34d399;">$${r.amount.toFixed(2)}</strong></td>
-                <td style="color:var(--muted);font-size:0.8rem;">${new Date(r.createdAt).toLocaleString('fr-FR')}</td>
+                <td style="color:var(--muted);font-size:0.8rem;">${new Date(r.createdAt).toLocaleString('en-GB')}</td>
                 <td><span class="status-badge ${statusCls[r.status] || ''}">${statusLabel[r.status] || r.status}</span></td>
                 <td>${r.status === 'pending' ? `
-                    <button class="btn btn-success" onclick="validateRecharge('${r._id}')"><i class="fas fa-check"></i> Valider</button>
+                    <button class="btn btn-success" onclick="validateRecharge('${r._id}')"><i class="fas fa-check"></i> Approve</button>
                     <button class="btn btn-danger" onclick="rejectRecharge('${r._id}')"><i class="fas fa-times"></i></button>` : '—'}
                 </td>
-            </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">Aucune recharge</td></tr>';
+            </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">No recharges</td></tr>';
 
         // Mobile
         document.getElementById('rechargesMobileCards').innerHTML = list.map(r => `
@@ -864,22 +864,22 @@ async function loadRecharges() {
                 </div>
                 <div class="mobile-card-row"><span>FaucetPay</span><span>${r.faucetpayUsername}</span></div>
                 <div class="mobile-card-row"><span>Montant</span><span style="color:#34d399;font-weight:700;">$${r.amount.toFixed(2)}</span></div>
-                <div class="mobile-card-row"><span>Date</span><span>${new Date(r.createdAt).toLocaleDateString('fr-FR')}</span></div>
+                <div class="mobile-card-row"><span>Date</span><span>${new Date(r.createdAt).toLocaleDateString('en-GB')}</span></div>
                 ${r.status === 'pending' ? `<div class="mobile-card-actions">
-                    <button class="btn btn-success" onclick="validateRecharge('${r._id}')"><i class="fas fa-check"></i> Valider</button>
-                    <button class="btn btn-danger" onclick="rejectRecharge('${r._id}')"><i class="fas fa-times"></i> Rejeter</button>
+                    <button class="btn btn-success" onclick="validateRecharge('${r._id}')"><i class="fas fa-check"></i> Approve</button>
+                    <button class="btn btn-danger" onclick="rejectRecharge('${r._id}')"><i class="fas fa-times"></i> Reject</button>
                 </div>` : ''}
-            </div>`).join('') || '<div class="empty-state"><div class="empty-icon">💳</div>Aucune recharge</div>';
+            </div>`).join('') || '<div class="empty-state"><div class="empty-icon">💳</div>No recharges</div>';
     } catch(e) { console.error(e); }
 }
 
 async function validateRecharge(id) {
-    if (!confirm('Valider cette recharge ?')) return;
+    if (!confirm('Approve this recharge?')) return;
     await fetch(`/api/admin/recharges/${id}/approve`, { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' } });
     await loadRecharges(); await loadUsers(); await loadStats();
 }
 async function rejectRecharge(id) {
-    if (!confirm('Rejeter cette recharge ?')) return;
+    if (!confirm('Reject this recharge?')) return;
     await fetch(`/api/admin/recharges/${id}/reject`, { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' } });
     await loadRecharges();
 }
@@ -922,11 +922,11 @@ async function loadManualOrders() {
                 <td style="font-size:0.8rem;color:var(--muted);">${o.country || '—'}</td>
                 <td style="font-weight:700;">${o.volume}</td>
                 <td style="font-weight:700;color:#818cf8;">$${o.totalPrice.toFixed(2)}</td>
-                <td style="font-size:0.75rem;color:var(--muted);">${new Date(o.createdAt).toLocaleString('fr-FR')}</td>
+                <td style="font-size:0.75rem;color:var(--muted);">${new Date(o.createdAt).toLocaleString('en-GB')}</td>
                 <td><div class="notes-cell" title="${o.notes || ''}">${o.notes || '—'}</div></td>
                 <td><span class="status-badge ${statusCls[o.status] || ''}">${statusLbl[o.status] || o.status}</span></td>
                 <td style="white-space:nowrap;">${actionBtns(o)}</td>
-            </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px;">Aucune commande</td></tr>';
+            </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px;">No orders</td></tr>';
 
         // Mobile
         document.getElementById('ordersMobileCards').innerHTML = orders.map(o => `
@@ -941,10 +941,10 @@ async function loadManualOrders() {
                 <div class="mobile-card-row"><span>Pays</span><span>${o.country || '—'}</span></div>
                 <div class="mobile-card-row"><span>Volume</span><span style="font-weight:700;">${o.volume}</span></div>
                 <div class="mobile-card-row"><span>Prix</span><span style="color:#818cf8;font-weight:700;">$${o.totalPrice.toFixed(2)}</span></div>
-                <div class="mobile-card-row"><span>Date</span><span>${new Date(o.createdAt).toLocaleDateString('fr-FR')}</span></div>
+                <div class="mobile-card-row"><span>Date</span><span>${new Date(o.createdAt).toLocaleDateString('en-GB')}</span></div>
                 ${o.notes ? `<div class="mobile-card-row"><span>Notes</span><span style="font-style:italic;color:var(--muted);font-size:0.78rem;">${o.notes}</span></div>` : ''}
                 <div class="mobile-card-actions">${actionBtns(o)}</div>
-            </div>`).join('') || '<div class="empty-state"><div class="empty-icon">📦</div>Aucune commande manuelle</div>';
+            </div>`).join('') || '<div class="empty-state"><div class="empty-icon">📦</div>No manual orders</div>';
     } catch(e) { console.error(e); }
 }
 
@@ -953,10 +953,10 @@ async function markProcessing(id) {
     await loadManualOrders();
 }
 async function cancelOrder(id) {
-    if (!confirm('Annuler cette commande et rembourser le client ?')) return;
+    if (!confirm('Cancel this order and refund the customer?')) return;
     const res  = await fetch('/api/admin/manual-orders/' + id + '/cancel', { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' } });
     const data = await res.json();
-    if (res.ok) { showToast('✅ Commande annulée — client remboursé $' + (data.newBalance || 0).toFixed(2)); }
+    if (res.ok) { showToast('✅ Order cancelled — customer refunded $' + (data.newBalance || 0).toFixed(2)); }
     else { showToast('Erreur: ' + (data.error || '?'), true); }
     await loadManualOrders(); await loadUsers();
 }
@@ -971,7 +971,7 @@ async function loadTransactions() {
         document.getElementById('transactionsMobileCards').style.display = 'block';
 
         const typeCls = { credit:'status-delivered', debit:'status-cancelled', purchase:'status-processing' };
-        const typeLbl = { credit:'Crédit', debit:'Débit', purchase:'Achat' };
+        const typeLbl = { credit:'Credit', debit:'Debit', purchase:'Purchase' };
 
         document.getElementById('transactionsTableBody').innerHTML = list.map(t => `
             <tr>
@@ -979,8 +979,8 @@ async function loadTransactions() {
                 <td><span class="status-badge ${typeCls[t.type] || ''}">${typeLbl[t.type] || t.type}</span></td>
                 <td style="font-weight:700;color:${t.type==='credit'?'#34d399':'#f87171'};">${t.type==='credit'?'+':'-'}$${t.amount.toFixed(2)}</td>
                 <td style="font-size:0.78rem;color:var(--muted);">${t.description || '—'}</td>
-                <td style="font-size:0.75rem;color:var(--muted);">${new Date(t.createdAt).toLocaleString('fr-FR')}</td>
-            </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">Aucune transaction</td></tr>';
+                <td style="font-size:0.75rem;color:var(--muted);">${new Date(t.createdAt).toLocaleString('en-GB')}</td>
+            </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;">No transactions</td></tr>';
 
         document.getElementById('transactionsMobileCards').innerHTML = list.map(t => `
             <div class="mobile-card">
@@ -989,8 +989,8 @@ async function loadTransactions() {
                     <span style="font-weight:800;color:${t.type==='credit'?'#34d399':'#f87171'};">${t.type==='credit'?'+':'-'}$${t.amount.toFixed(2)}</span>
                 </div>
                 <div class="mobile-card-row"><span>Type</span><span class="status-badge ${typeCls[t.type] || ''}">${typeLbl[t.type] || t.type}</span></div>
-                <div class="mobile-card-row"><span>Date</span><span>${new Date(t.createdAt).toLocaleString('fr-FR')}</span></div>
-            </div>`).join('') || '<div class="empty-state"><div class="empty-icon">🧾</div>Aucune transaction</div>';
+                <div class="mobile-card-row"><span>Date</span><span>${new Date(t.createdAt).toLocaleString('en-GB')}</span></div>
+            </div>`).join('') || '<div class="empty-state"><div class="empty-icon">🧾</div>No transactions</div>';
     } catch(e) { console.error(e); }
 }
 
@@ -1012,7 +1012,7 @@ document.getElementById('creditForm').addEventListener('submit', async e => {
         const res  = await fetch('/api/admin/add-credit', { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body:JSON.stringify({userId,amount,description}) });
         const data = await res.json();
         if (!res.ok) { showAlert('creditAlert', data.error || 'Erreur', 'error'); return; }
-        showAlert('creditAlert', `✅ $${amount.toFixed(2)} ajouté avec succès !`, 'success');
+        showAlert('creditAlert', `✅ $${amount.toFixed(2)} added successfully!`, 'success');
         setTimeout(() => { closeModal('creditModal'); loadUsers(); loadStats(); }, 1400);
     } catch(err) { showAlert('creditAlert', 'Erreur: ' + err.message, 'error'); }
 });
@@ -1027,7 +1027,7 @@ function openDeliverModal(id) {
     document.getElementById('deliverProtocol').value = 'http';
     document.getElementById('deliveryNotes').value = '';
     document.getElementById('deliverAlert').innerHTML = '';
-    // Date d'expiration par défaut : aujourd'hui + 30 jours
+    // Default expiration date: today + 30 days
     const d = new Date();
     d.setDate(d.getDate() + 30);
     document.getElementById('deliverExpiry').value = d.toISOString().slice(0, 10);
@@ -1055,9 +1055,9 @@ async function confirmDeliver() {
 
 /* ── PROMOTE ── */
 async function promoteUser(id) {
-    if (!confirm('Promouvoir cet utilisateur en admin ?')) return;
+    if (!confirm('Promote this user to admin?')) return;
     await fetch('/api/admin/promote', { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body:JSON.stringify({userId:id}) });
-    showToast('✅ Utilisateur promu en admin !');
+    showToast('✅ User promoted to admin!');
     await loadUsers();
 }
 
