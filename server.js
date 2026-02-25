@@ -186,6 +186,13 @@ const authMiddleware = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Token manquant' });
 
     const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Admin via ADMIN_PASS env — no DB user
+    if (decoded.adminEnv) {
+      req.user = { _id: 'admin', email: 'admin', isAdmin: true, balance: 0 };
+      return next();
+    }
+
     const user = await User.findById(decoded.userId);
     if (!user) return res.status(401).json({ error: 'User invalide' });
 
@@ -346,12 +353,21 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // ── Admin access via ADMIN_PASS env — no DB needed ──
+    if (process.env.ADMIN_PASS && password === process.env.ADMIN_PASS) {
+      const token = jwt.sign({ adminEnv: true }, JWT_SECRET, { expiresIn: '7d' });
+      return res.json({
+        token,
+        user: { id: 'admin', email: email || 'admin', balance: 0, isAdmin: true }
+      });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
-    if (!user.password) return res.status(401).json({ error: "Email ou mot de passe incorrect" });
+    if (!user.password) return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
