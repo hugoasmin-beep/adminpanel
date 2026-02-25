@@ -351,6 +351,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
+    if (!user.password) return res.status(401).json({ error: "Email ou mot de passe incorrect" });
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
@@ -1162,20 +1163,48 @@ app.get('/', (req, res) => {
   `);
 });
 
+// ========== ADMIN RESET ==========
+// GET /api/setup/reset-admin?email=you@email.com
+// Uses ADMIN_PASS from .env as the new password
+app.get("/api/setup/reset-admin", async (req, res) => {
+  const { email } = req.query;
+  const adminPass = process.env.ADMIN_PASS;
+  if (!adminPass) return res.status(500).json({ error: "ADMIN_PASS not set in environment" });
+  if (!email) return res.status(400).json({ error: "email query param required" });
+  try {
+    const hashed = await bcrypt.hash(adminPass, 10);
+    const result = await User.findOneAndUpdate(
+      { isAdmin: true },
+      { email, password: hashed, isEmailVerified: true },
+      { new: true, upsert: false }
+    );
+    if (!result) return res.status(404).json({ error: "No admin user found in DB" });
+    res.json({ success: true, message: `Admin updated: ${result.email}` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Create default admin
 async function createDefaultAdmin() {
   try {
     const adminExists = await User.findOne({ isAdmin: true });
     if (!adminExists) {
-      const hashedPassword = await bcrypt.hash('nrproxy1234', 10);
+      const adminPass = process.env.ADMIN_PASS;
+      if (!adminPass) {
+        console.error('\n⚠️  ADMIN_PASS not set in .env — skipping default admin creation');
+        return;
+      }
+      const hashedPassword = await bcrypt.hash(adminPass, 10);
+      const adminEmail = process.env.ADMIN_EMAIL || 'admin@localhost';
       await new User({
-        email: 'nrproxy@gmail.com',
+        email: adminEmail,
         password: hashedPassword,
         balance: 0,
         isAdmin: true,
         isEmailVerified: true
       }).save();
-      console.log('\n👑 Admin created: nrproxy@gmail.com / nrproxy1234');
+      console.log(`\n👑 Admin created: ${adminEmail}`);
     }
   } catch (error) {
     console.error('Error creating admin:', error.message);
