@@ -10,7 +10,7 @@ const jwt = require('jsonwebtoken');
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
 const BREVO_FROM_EMAIL = process.env.BREVO_FROM_EMAIL || 'enlignea74@gmail.com';
-const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'ProxyFlow';
+const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'NRPROXY';
 
 async function sendEmailViaBrevo(to, subject, htmlContent) {
   try {
@@ -1100,7 +1100,7 @@ app.get('/', (req, res) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Proxy Shop API</title>
+        <title>NRPROXY API</title>
         <style>
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -1149,7 +1149,7 @@ app.get('/', (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>🌐 Proxy Shop API</h1>
+          <h1>🌐 NRPROXY API</h1>
           <p>Backend opérationnel et prêt</p>
           <div class="links">
             <a href="/admin.html">👑 Panel Admin</a>
@@ -1162,23 +1162,23 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Créer le premier admin
+// Create default admin
 async function createDefaultAdmin() {
   try {
     const adminExists = await User.findOne({ isAdmin: true });
     if (!adminExists) {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const hashedPassword = await bcrypt.hash('nrproxy1234', 10);
       await new User({
-        email: 'admin@proxyshop.com',
+        email: 'nrproxy@gmail.com',
         password: hashedPassword,
         balance: 0,
         isAdmin: true,
         isEmailVerified: true
       }).save();
-      console.log('\n👑 Admin créé: admin@proxyshop.com / admin123');
+      console.log('\n👑 Admin created: nrproxy@gmail.com / nrproxy1234');
     }
   } catch (error) {
-    console.error('Erreur création admin:', error.message);
+    console.error('Error creating admin:', error.message);
   }
 }
 // Modèle Recharge
