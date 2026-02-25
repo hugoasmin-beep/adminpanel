@@ -89,7 +89,8 @@ const PORT = process.env.PORT || 5000;
 // CORS Configuration
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  process.env.FRONTEND_URL_2,   // optional second frontend domain
+  process.env.FRONTEND_URL_2,
+  process.env.FRONTEND_URL_3,
   'http://localhost:3000',
   'http://localhost:5000',
   'http://127.0.0.1:3000',
@@ -100,6 +101,9 @@ const corsOptions = {
   origin: function (origin, callback) {
     // allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
+    // allow any *.onrender.com subdomain (covers all Render deployments)
+    if (origin.endsWith('.onrender.com')) return callback(null, true);
+    // allow explicitly listed origins
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error('CORS: origin not allowed: ' + origin));
   },
