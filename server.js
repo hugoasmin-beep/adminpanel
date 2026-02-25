@@ -413,7 +413,8 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
 
     // ── Admin access via ADMIN_PASS env — no DB needed ──
-    if (process.env.ADMIN_PASS && password === process.env.ADMIN_PASS) {
+    const adminEmail = process.env.ADMIN_EMAIL || null;
+    if (process.env.ADMIN_PASS && password === process.env.ADMIN_PASS && (!adminEmail || email === adminEmail)) {
       const token = jwt.sign({ adminEnv: true }, JWT_SECRET, { expiresIn: '7d' });
       return res.json({
         token,
@@ -919,7 +920,7 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     // Déduction du solde utilisateur
     const balanceBefore = req.user.balance;
     req.user.balance -= price;
-    await req.user.save();
+    if (req.user._id !== 'admin') await req.user.save();
 
     // Enregistrer transaction
     await new Transaction({
@@ -1453,7 +1454,7 @@ app.post('/api/manual-order', authMiddleware, async (req, res) => {
     // Débiter le solde
     const balanceBefore = req.user.balance;
     req.user.balance = parseFloat((req.user.balance - totalPrice).toFixed(2));
-    await req.user.save();
+    if (req.user._id !== 'admin') await req.user.save();
 
     // Créer la commande
     const order = new ManualOrder({
@@ -1656,7 +1657,7 @@ app.post('/api/admin/manual-orders/:id/cancel', authMiddleware, adminMiddleware,
 // Frais: 1% prélevé automatiquement sur chaque transaction
 // Doc: https://docs.cryptapi.io
 
-const CRYPTAPI_BACKEND_URL = process.env.BACKEND_URL || 'https://adminpanel-fj5l.onrender.com';
+const CRYPTAPI_BACKEND_URL = process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5000';
 
 // Coins supportés avec leur ticker CryptAPI et label
 const SUPPORTED_COINS = {
@@ -1908,7 +1909,7 @@ async function sendBalanceNotification(user, amountCredited, newBalance, method)
   </div>
 </body></html>`;
   try {
-    await sendEmail(toEmail, '✅ Balance credited - ProxyFlow', html);
+    await sendEmailViaBrevo(toEmail, '✅ Balance credited - ProxyFlow', html);
     console.log('📧 Balance notification sent to', toEmail);
   } catch (err) {
     console.error('Notify email error:', err.message);
