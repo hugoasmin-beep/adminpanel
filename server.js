@@ -1164,22 +1164,20 @@ app.get('/', (req, res) => {
 });
 
 // ========== ADMIN RESET ==========
-// GET /api/setup/reset-admin?email=you@email.com
-// Uses ADMIN_PASS from .env as the new password
+// GET /api/setup/reset-admin?pass=YOUR_ADMIN_PASS
 app.get("/api/setup/reset-admin", async (req, res) => {
-  const { email } = req.query;
   const adminPass = process.env.ADMIN_PASS;
+  const adminEmail = process.env.ADMIN_EMAIL || "admin@localhost";
   if (!adminPass) return res.status(500).json({ error: "ADMIN_PASS not set in environment" });
-  if (!email) return res.status(400).json({ error: "email query param required" });
+  if (req.query.pass !== adminPass) return res.status(403).json({ error: "Invalid password" });
   try {
     const hashed = await bcrypt.hash(adminPass, 10);
-    const result = await User.findOneAndUpdate(
+    await User.findOneAndUpdate(
       { isAdmin: true },
-      { email, password: hashed, isEmailVerified: true },
-      { new: true, upsert: false }
+      { $set: { email: adminEmail, password: hashed, isEmailVerified: true, isAdmin: true } },
+      { upsert: true, new: true }
     );
-    if (!result) return res.status(404).json({ error: "No admin user found in DB" });
-    res.json({ success: true, message: `Admin updated: ${result.email}` });
+    res.json({ success: true, message: "Admin ready: " + adminEmail });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
