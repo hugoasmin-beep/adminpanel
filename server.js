@@ -111,9 +111,12 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static('public'));
 
-// Return 503 immediately if MongoDB is not connected (instead of buffering timeout)
+// Return 503 only for API routes if MongoDB is truly disconnected (not just connecting/reconnecting)
 app.use((req, res, next) => {
-  if (mongoose.connection.readyState !== 1) {
+  // readyState: 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  // Allow through if connected (1) or still connecting (2) — mongoose will buffer the query
+  // Only block if fully disconnected (0) on API routes
+  if (req.path.startsWith('/api') && mongoose.connection.readyState === 0) {
     return res.status(503).json({ error: 'Database unavailable, please retry in a few seconds.' });
   }
   next();
