@@ -6,7 +6,6 @@ const path = require('path');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 // ========== BREVO (ex-Sendinblue) EMAIL ==========
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 const BREVO_API_KEY = process.env.BREVO_API_KEY;
@@ -63,7 +62,7 @@ async function checkEmailRateLimit(user) {
   }
 
   user.emailSentCount += 1;
-  await user.save();
+  await user.save({ validateBeforeSave: false }); // skip full validation (e.g. for users missing password field)
 }
 
 async function sendVerificationEmail(email, token) {
@@ -312,8 +311,8 @@ app.post('/api/auth/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate a secure random verification token (no JWT dependency)
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    // Générer un token de vérification unique
+    const verificationToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '24h' });
 
     const user = new User({
       email,
@@ -347,26 +346,17 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ error: 'Incorrect email or password' });
-    }
-
-    // Guard: user exists but has no hashed password (legacy / corrupted account)
-    if (!user.password) {
-      return res.status(401).json({ error: 'Account has no password set. Please reset your password.' });
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
-      return res.status(401).json({ error: 'Incorrect email or password' });
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
-    // Check email is verified (except for admins)
+    // Vérifier si l'email est confirmé (sauf pour les admins)
     if (!user.isEmailVerified && !user.isAdmin) {
       return res.status(403).json({ 
         error: 'Please verify your email before logging in.',
@@ -404,21 +394,23 @@ app.get('/api/auth/me', authMiddleware, async (req, res) => {
 app.get('/api/auth/verify-email', async (req, res) => {
   try {
     const { token } = req.query;
-    if (!token) return res.status(400).json({ error: 'Missing token' });
+    if (!token) return res.status(400).json({ error: 'Token manquant' });
 
-    // Find user by token (no JWT dependency — plain random hex token)
+    // Vérifier le JWT
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (e) {
+      return res.status(400).json({ error: 'Link expired or invalid. Please request a new verification email.' });
+    }
+
     const user = await User.findOne({ emailVerificationToken: token });
     if (!user) {
-      return res.status(400).json({ error: 'Link already used or invalid. Please request a new verification email.' });
+      return res.status(400).json({ error: 'Lien déjà utilisé ou invalide.' });
     }
 
     if (user.isEmailVerified) {
       return res.json({ message: 'Email already verified. You can log in.' });
-    }
-
-    // Check expiry (24h)
-    if (user.emailVerificationExpires && user.emailVerificationExpires < new Date()) {
-      return res.status(400).json({ error: 'Link expired. Please request a new verification email.' });
     }
 
     user.isEmailVerified = true;
@@ -453,10 +445,10 @@ app.post('/api/auth/resend-verification', async (req, res) => {
       throw e;
     }
 
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: '24h' });
     user.emailVerificationToken = verificationToken;
     user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
     await sendVerificationEmail(email, verificationToken);
     res.json({ message: `📧 Verification email sent to ${email}. Please check your inbox (and spam folder).` });
@@ -492,7 +484,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const resetToken = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
     user.passwordResetToken = resetToken;
     user.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000);
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
     try {
       await sendPasswordResetEmail(email, resetToken);
@@ -1184,15 +1176,6 @@ async function createDefaultAdmin() {
         isEmailVerified: true
       }).save();
       console.log('\n👑 Admin created: nrproxy@gmail.com / nrproxy1234');
-    } else if (!adminExists.password) {
-      // Admin exists but has no hashed password → repair it
-      const hashedPassword = await bcrypt.hash('nrproxy1234', 10);
-      await User.findByIdAndUpdate(adminExists._id, {
-        password: hashedPassword,
-        email: 'nrproxy@gmail.com',
-        isEmailVerified: true
-      });
-      console.log('\n👑 Admin password repaired: nrproxy@gmail.com / nrproxy1234');
     }
   } catch (error) {
     console.error('Error creating admin:', error.message);
