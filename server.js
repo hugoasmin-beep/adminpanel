@@ -87,14 +87,22 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // CORS Configuration
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL_2,   // optional second frontend domain
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000'
+].filter(Boolean);
+
 const corsOptions = {
-  origin: [
-    process.env.FRONTEND_URL,
-    'http://localhost:3000',
-    'http://localhost:5000',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:5000'
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('CORS: origin not allowed: ' + origin));
+  },
   credentials: true
 };
 
@@ -103,10 +111,44 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static('public'));
 
+// Return 503 immediately if MongoDB is not connected (instead of buffering timeout)
+app.use((req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ error: 'Database unavailable, please retry in a few seconds.' });
+  }
+  next();
+});
+
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connecté'))
-  .catch(err => console.error('❌ MongoDB erreur:', err));
+// MongoDB connection with auto-reconnect
+const MONGO_OPTIONS = {
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+  heartbeatFrequencyMS: 10000,
+  retryWrites: true,
+};
+
+async function connectMongo() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, MONGO_OPTIONS);
+    console.log('✅ MongoDB connecté');
+  } catch (err) {
+    console.error('❌ MongoDB erreur:', err.message);
+    setTimeout(connectMongo, 5000); // retry after 5s
+  }
+}
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('⚠️ MongoDB déconnecté — tentative de reconnexion...');
+  setTimeout(connectMongo, 3000);
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB erreur:', err.message);
+});
+
+connectMongo();
 
 // Models
 const UserSchema = new mongoose.Schema({
