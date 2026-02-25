@@ -97,15 +97,25 @@ const allowedOrigins = [
   'http://127.0.0.1:5000'
 ].filter(Boolean);
 
+// Wildcard patterns for trusted hosting platforms
+const trustedPatterns = [
+  /\.onrender\.com$/,
+  /\.42web\.io$/,
+  /\.vercel\.app$/,
+  /\.netlify\.app$/,
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
     // allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
-    // allow any *.onrender.com subdomain (covers all Render deployments)
-    if (origin.endsWith('.onrender.com')) return callback(null, true);
+    // allow trusted hosting platforms
+    if (trustedPatterns.some(p => p.test(origin))) return callback(null, true);
     // allow explicitly listed origins
     if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error('CORS: origin not allowed: ' + origin));
+    // reject cleanly — do NOT throw (would cause 500), just deny
+    console.warn('CORS blocked:', origin);
+    return callback(null, false);
   },
   credentials: true
 };
