@@ -49,7 +49,7 @@ async function checkEmailRateLimit(user) {
   const now = new Date();
   const windowMs = 10 * 60 * 1000; // 10 minutes
 
-  // Réinitialiser la fenêtre si expirée
+  // Reset window if expired
   if (!user.emailSentWindowStart || (now - user.emailSentWindowStart) > windowMs) {
     user.emailSentCount = 0;
     user.emailSentWindowStart = now;
@@ -69,8 +69,8 @@ async function sendVerificationEmail(email, token) {
   const verifyUrl = `${FRONTEND_URL}/verify-email.html?token=${token}`;
   await sendEmailViaBrevo(
     email,
-    '✅ Vérifiez votre adresse email - ProxyFlow',
-    `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 10px rgba(0,0,0,0.1);"><div style="text-align:center;margin-bottom:30px;"><h1 style="color:#6366f1;font-size:28px;margin:0;">🌐 ProxyFlow</h1></div><h2 style="color:#1f2937;margin-bottom:10px;">Vérifiez votre email</h2><p style="color:#6b7280;line-height:1.6;">Merci de vous être inscrit ! Cliquez sur le bouton ci-dessous pour activer votre compte.</p><div style="text-align:center;margin:35px 0;"><a href="${verifyUrl}" style="background:#6366f1;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">✅ Vérifier mon email</a></div><p style="color:#9ca3af;font-size:13px;text-align:center;">Ce lien expire dans 24 heures.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:25px 0;"><p style="color:#9ca3af;font-size:12px;text-align:center;">Si vous n'avez pas créé de compte, ignorez cet email.</p></div></body></html>`
+    '✅ Verify your email address - ProxyFlow',
+    `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 10px rgba(0,0,0,0.1);"><div style="text-align:center;margin-bottom:30px;"><h1 style="color:#6366f1;font-size:28px;margin:0;">🌐 ProxyFlow</h1></div><h2 style="color:#1f2937;margin-bottom:10px;">Verify your email</h2><p style="color:#6b7280;line-height:1.6;">Thank you for signing up! Click the button below to activate your account.</p><div style="text-align:center;margin:35px 0;"><a href="${verifyUrl}" style="background:#6366f1;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">✅ Verify my email</a></div><p style="color:#9ca3af;font-size:13px;text-align:center;">This link expires in 24 hours.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:25px 0;"><p style="color:#9ca3af;font-size:12px;text-align:center;">If you did not create an account, please ignore this email.</p></div></body></html>`
   );
 }
 
@@ -79,7 +79,7 @@ async function sendPasswordResetEmail(email, token) {
   await sendEmailViaBrevo(
     email,
     '🔐 Réinitialisation de votre mot de passe - ProxyFlow',
-    `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 10px rgba(0,0,0,0.1);"><div style="text-align:center;margin-bottom:30px;"><h1 style="color:#6366f1;font-size:28px;margin:0;">🌐 ProxyFlow</h1></div><h2 style="color:#1f2937;margin-bottom:10px;">Réinitialiser votre mot de passe</h2><p style="color:#6b7280;line-height:1.6;">Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le bouton ci-dessous pour en choisir un nouveau.</p><div style="text-align:center;margin:35px 0;"><a href="${resetUrl}" style="background:#ef4444;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">🔐 Réinitialiser le mot de passe</a></div><p style="color:#9ca3af;font-size:13px;text-align:center;">Ce lien expire dans 1 heure.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:25px 0;"><p style="color:#9ca3af;font-size:12px;text-align:center;">Si vous n'avez pas fait cette demande, ignorez cet email. Votre mot de passe reste inchangé.</p></div></body></html>`
+    `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 10px rgba(0,0,0,0.1);"><div style="text-align:center;margin-bottom:30px;"><h1 style="color:#6366f1;font-size:28px;margin:0;">🌐 ProxyFlow</h1></div><h2 style="color:#1f2937;margin-bottom:10px;">Reset your password</h2><p style="color:#6b7280;line-height:1.6;">You requested a password reset. Click the button below to choose a new one.</p><div style="text-align:center;margin:35px 0;"><a href="${resetUrl}" style="background:#ef4444;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;display:inline-block;">🔐 Reset password</a></div><p style="color:#9ca3af;font-size:13px;text-align:center;">This link expires in 1 hour.</p><hr style="border:none;border-top:1px solid #e5e7eb;margin:25px 0;"><p style="color:#9ca3af;font-size:12px;text-align:center;">If you did not make this request, please ignore this email. Your password remains unchanged.</p></div></body></html>`
   );
 }
 
@@ -213,24 +213,26 @@ const PRICES = {
   golden: {
     name: "Golden Package",
     package_id: parseInt(process.env.GOLDEN_PACKAGE_ID) || 1,
-    description: "Possibilité de changer de pays",
+    description: "Country change available",
     prices: [
-      { duration: 0.02, label: "2 heures", price: 0.30 },
-      { duration: 0.12, label: "12 heures", price: 0.60 },
-      { duration: 3, label: "3 jours", price: 2.5 },
-      { duration: 7, label: "7 jours", price: 4.5 },
-      { duration: 15, label: "15 jours", price: 10 },
-      { duration: 30, label: "30 jours", price: 18 }
+      { duration: 0.0833, label: "2 hours",  price: 0.25 },
+      { duration: 0.125,  label: "3 hours",  price: 0.30 },
+      { duration: 0.5,    label: "12 hours", price: 0.45 },
+      { duration: 1,      label: "1 day",    price: 0.70 },
+      { duration: 3,      label: "3 days",   price: 2.00 },
+      { duration: 7,      label: "7 days",   price: 4.00 },
+      { duration: 15,     label: "15 days",  price: 7.50 },
+      { duration: 30,     label: "30 days",  price: 14.50 }
     ]
   },
   silver: {
     name: "Silver Package",
     package_id: parseInt(process.env.SILVER_PACKAGE_ID) || 2,
-    description: "Pays fixe",
+    description: "Fixed country",
     prices: [
-      { duration: 2, label: "2 jours", price: 1.5 },
-      { duration: 7, label: "7 jours", price: 4 },
-      { duration: 30, label: "30 jours", price: 12 }
+      { duration: 2,  label: "2 days",  price: 1.10 },
+      { duration: 7,  label: "7 days",  price: 3.00 },
+      { duration: 30, label: "30 days", price: 10.00 }
     ]
   }
 };
@@ -328,11 +330,11 @@ app.post('/api/auth/register', async (req, res) => {
       await checkEmailRateLimit(user);
       await sendVerificationEmail(email, verificationToken);
     } catch (emailError) {
-      console.error('Erreur envoi email vérification:', emailError.message);
+      console.error('Error sending verification email:', emailError.message);
     }
 
     res.json({
-      message: `📧 Compte créé ! Un email de vérification a été envoyé à ${email}. Cliquez sur le lien pour activer votre compte.`,
+      message: `📧 Account created! A verification email has been sent to ${email}. Click the link to activate your account.`,
       emailSent: true
     });
   } catch (error) {
@@ -357,7 +359,7 @@ app.post('/api/auth/login', async (req, res) => {
     // Vérifier si l'email est confirmé (sauf pour les admins)
     if (!user.isEmailVerified && !user.isAdmin) {
       return res.status(403).json({ 
-        error: 'Veuillez vérifier votre email avant de vous connecter.',
+        error: 'Please verify your email before logging in.',
         emailNotVerified: true
       });
     }
@@ -399,7 +401,7 @@ app.get('/api/auth/verify-email', async (req, res) => {
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (e) {
-      return res.status(400).json({ error: 'Lien expiré ou invalide. Demandez un nouvel email de vérification.' });
+      return res.status(400).json({ error: 'Link expired or invalid. Please request a new verification email.' });
     }
 
     const user = await User.findOne({ emailVerificationToken: token });
@@ -408,7 +410,7 @@ app.get('/api/auth/verify-email', async (req, res) => {
     }
 
     if (user.isEmailVerified) {
-      return res.json({ message: 'Email déjà vérifié. Vous pouvez vous connecter.' });
+      return res.json({ message: 'Email already verified. You can log in.' });
     }
 
     user.isEmailVerified = true;
@@ -416,7 +418,7 @@ app.get('/api/auth/verify-email', async (req, res) => {
     user.emailVerificationExpires = null;
     await user.save();
 
-    res.json({ message: 'Email vérifié avec succès ! Vous pouvez maintenant vous connecter.' });
+    res.json({ message: 'Email verified successfully! You can now log in.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -430,7 +432,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'Aucun compte trouvé avec cet email.' });
-    if (user.isEmailVerified) return res.status(400).json({ error: 'Votre email est déjà vérifié. Vous pouvez vous connecter.' });
+    if (user.isEmailVerified) return res.status(400).json({ error: 'Your email is already verified. You can log in.' });
 
     // Rate limit
     try {
@@ -449,7 +451,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
     await user.save();
 
     await sendVerificationEmail(email, verificationToken);
-    res.json({ message: `📧 Email de vérification envoyé à ${email}. Vérifiez votre boîte mail (et les spams).` });
+    res.json({ message: `📧 Verification email sent to ${email}. Please check your inbox (and spam folder).` });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -463,7 +465,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email requis' });
 
     const user = await User.findOne({ email });
-    // Toujours répondre OK pour ne pas révéler si l'email existe
+    // Always return OK to avoid revealing if email exists
     if (!user) {
       return res.json({ message: '📧 Si cet email est associé à un compte, vous recevrez un lien de réinitialisation sous peu.' });
     }
@@ -491,7 +493,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       return res.status(500).json({ error: "Erreur lors de l'envoi de l'email. Réessayez dans quelques instants." });
     }
 
-    res.json({ message: '📧 Un lien de réinitialisation a été envoyé à ' + email + '. Vérifiez votre boîte mail (et les spams). Ce lien expire dans 1 heure.' });
+    res.json({ message: '📧 A reset link has been sent to ' + email + '. Please check your inbox (and spam folder). This link expires in 1 hour.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -508,7 +510,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     try {
       decoded = jwt.verify(token, JWT_SECRET);
     } catch (e) {
-      return res.status(400).json({ error: 'Lien expiré ou invalide. Demandez un nouveau lien.' });
+      return res.status(400).json({ error: 'Link expired or invalid. Please request a new link.' });
     }
 
     const user = await User.findOne({ passwordResetToken: token });
@@ -517,7 +519,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
 
     if (user.passwordResetExpires < new Date()) {
-      return res.status(400).json({ error: 'Lien expiré. Demandez un nouveau lien de réinitialisation.' });
+      return res.status(400).json({ error: 'Link expired. Please request a new reset link.' });
     }
 
     user.password = await bcrypt.hash(password, 10);
@@ -525,7 +527,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     user.passwordResetExpires = null;
     await user.save();
 
-    res.json({ message: 'Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter.' });
+    res.json({ message: 'Password réinitialisé avec succès ! Vous pouvez maintenant vous connecter.' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -563,7 +565,7 @@ app.post('/api/admin/add-credit', authMiddleware, adminMiddleware, async (req, r
       userId: user._id,
       type: 'credit',
       amount: parseFloat(amount),
-      description: description || 'Crédit ajouté par admin',
+      description: description || 'Credit added by admin',
       balanceBefore,
       balanceAfter: user.balance
     }).save();
@@ -603,7 +605,7 @@ app.post('/api/admin/remove-credit', authMiddleware, adminMiddleware, async (req
       userId: user._id,
       type: 'debit',
       amount: parseFloat(amount),
-      description: description || 'Crédit retiré par admin',
+      description: description || 'Credit removed by admin',
       balanceBefore,
       balanceAfter: user.balance
     }).save();
@@ -753,13 +755,13 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     
     if (!validPattern.test(username)) {
       return res.status(400).json({ 
-        error: 'Username doit contenir uniquement des lettres minuscules, chiffres, _ et -' 
+        error: 'Username must contain only lowercase letters, digits, _ and -' 
       });
     }
     
     if (!validPattern.test(password)) {
       return res.status(400).json({ 
-        error: 'Password doit contenir uniquement des lettres minuscules, chiffres, _ et -' 
+        error: 'Password must contain only lowercase letters, digits, _ and -' 
       });
     }
 
@@ -774,7 +776,7 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
 
     // Rate limit check
     if (!checkPurchaseRateLimit(req.user._id)) {
-        return res.status(429).json({ error: "Trop d'achats. Maximum 10 proxies par heure. Réessayez plus tard." });
+        return res.status(429).json({ error: "Too many purchases. Maximum 10 proxies per hour. Please try again later." });
     }
 
     // Calcul du prix
@@ -790,7 +792,7 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     // Vérification solde
     if (req.user.balance < price) {
       return res.status(400).json({ 
-        error: 'Solde insuffisant', 
+        error: 'Insufficient balance', 
         required: price, 
         balance: req.user.balance 
       });
@@ -810,7 +812,7 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       proxyData.ip_addr = ip_addr;
     }
 
-    // Achat via API externe
+    // Purchase via external API
     const token = await getAuthToken();
     let apiResponse;
     
@@ -848,7 +850,7 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
       userId: req.user._id,
       type: 'purchase',
       amount: price,
-      description: `Achat proxy ${protocol} - ${duration} jour(s)`,
+      description: `Proxy purchase ${protocol} - ${duration} day(s)`,
       balanceBefore,
       balanceAfter: req.user.balance,
       proxyDetails: apiResponse
@@ -897,7 +899,7 @@ app.put('/api/proxies/:id/change-parent', authMiddleware, async (req, res) => {
     }
 
     if ((proxy.packageType || '').toLowerCase() !== 'golden') {
-      return res.status(403).json({ error: 'Seuls les Golden Packages peuvent changer de pays' });
+      return res.status(403).json({ error: 'Only Golden Packages can change country' });
     }
 
     if (!parent_proxy_id) {
@@ -924,7 +926,7 @@ app.put('/api/proxies/:id/change-parent', authMiddleware, async (req, res) => {
       }
     ).then(r => r.data);
 
-    // Mettre à jour dans notre BDD
+    // Update in our database
     proxy.host = apiResponse.ip_addr || proxy.host;
     proxy.port = apiResponse.port || proxy.port;
     proxy.username = apiResponse.username || proxy.username;
@@ -936,7 +938,7 @@ app.put('/api/proxies/:id/change-parent', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      message: '🌍 Localisation changée avec succès!',
+      message: '🌍 Location changed successfully!',
       proxy: apiResponse
     });
 
@@ -1042,8 +1044,8 @@ app.get('/api/user/dashboard', authMiddleware, async (req, res) => {
       .filter(p => p.status === 'expiring_soon' || p.status === 'expired')
       .map(p => ({
         message: p.status === 'expired'
-          ? `⚠️ Proxy ${p.type} expiré depuis ${Math.abs(p.daysRemaining)} jour(s)`
-          : `🔔 Proxy ${p.type} expire dans ${p.daysRemaining} jour(s)`,
+          ? `⚠️ Proxy ${p.type} expired ${Math.abs(p.daysRemaining)} day(s)`
+          : `🔔 Proxy ${p.type} expires in ${p.daysRemaining} day(s)`,
         createdAt: new Date()
       }));
 
@@ -1094,7 +1096,7 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.send(`
     <!DOCTYPE html>
-    <html lang="fr">
+    <html lang="en">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1210,7 +1212,7 @@ app.post('/api/recharge-request', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Montant minimum : 0.50$' });
     }
     if (!faucetpayUsername) {
-      return res.status(400).json({ error: 'Nom d’utilisateur FaucetPay requis' });
+      return res.status(400).json({ error: 'FaucetPay username required' });
     }
 
     const recharge = new Recharge({
@@ -1221,10 +1223,10 @@ app.post('/api/recharge-request', authMiddleware, async (req, res) => {
 
     await recharge.save();
 
-    res.json({ success: true, message: 'Demande envoyée. En attente de validation admin.' });
+    res.json({ success: true, message: 'Request sent. Awaiting admin validation.' });
 
   } catch (error) {
-    console.error('Erreur recharge-request:', error);
+    console.error('Error recharge-request:', error);
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -1252,14 +1254,14 @@ app.get('/api/admin/recharges', authMiddleware, adminMiddleware, async (req, res
 app.post('/api/admin/recharges/:id/approve', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const recharge = await Recharge.findById(req.params.id);
-    if (!recharge) return res.status(404).json({ error: 'Demande non trouvée' });
+    if (!recharge) return res.status(404).json({ error: 'Request not found' });
 
     if (recharge.status !== 'pending') {
       return res.status(400).json({ error: 'Demande déjà traitée' });
     }
 
     const user = await User.findById(recharge.userId);
-    if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     const balanceBefore = user.balance;
     user.balance += recharge.amount;
@@ -1291,7 +1293,7 @@ app.post('/api/admin/recharges/:id/approve', authMiddleware, adminMiddleware, as
 app.post('/api/admin/recharges/:id/reject', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const recharge = await Recharge.findById(req.params.id);
-    if (!recharge) return res.status(404).json({ error: 'Demande non trouvée' });
+    if (!recharge) return res.status(404).json({ error: 'Request not found' });
 
     if (recharge.status !== 'pending') {
       return res.status(400).json({ error: 'Demande déjà traitée' });
@@ -1330,7 +1332,7 @@ app.post('/api/manual-order', authMiddleware, async (req, res) => {
     const { type, typeLabel, volume, totalPrice, notes } = req.body;
 
     if (!type || !typeLabel || !volume || !totalPrice) {
-      return res.status(400).json({ error: 'Données de commande incomplètes' });
+      return res.status(400).json({ error: 'Incomplete order data' });
     }
 
     if (totalPrice <= 0) {
@@ -1340,7 +1342,7 @@ app.post('/api/manual-order', authMiddleware, async (req, res) => {
     // Vérification solde
     if (req.user.balance < totalPrice) {
       return res.status(400).json({
-        error: `Solde insuffisant. Il vous faut $${totalPrice.toFixed(2)}, vous avez $${req.user.balance.toFixed(2)}.`,
+        error: `Insufficient balance. You need $${totalPrice.toFixed(2)}, you have $${req.user.balance.toFixed(2)}.`,
         required: totalPrice,
         balance: req.user.balance
       });
@@ -1368,8 +1370,8 @@ app.post('/api/manual-order', authMiddleware, async (req, res) => {
         for (const admin of admins) {
             await sendEmailViaBrevo(
                 admin.email,
-                `📦 Nouvelle commande manuelle - ${typeLabel}`,
-                `<html><body style="font-family:Arial,sans-serif;padding:20px;background:#f4f4f4"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:30px"><h2 style="color:#6366f1">📦 Nouvelle commande manuelle</h2><table style="width:100%;border-collapse:collapse"><tr><td style="padding:8px;color:#666">Type</td><td style="padding:8px;font-weight:bold">${typeLabel}</td></tr><tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Volume</td><td style="padding:8px;font-weight:bold">${volume}</td></tr><tr><td style="padding:8px;color:#666">Montant</td><td style="padding:8px;font-weight:bold;color:#6366f1">$${totalPrice}</td></tr><tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Client</td><td style="padding:8px">${req.user.email}</td></tr><tr><td style="padding:8px;color:#666">Notes</td><td style="padding:8px">${notes || '—'}</td></tr></table><div style="margin-top:20px;text-align:center"><a href="${process.env.FRONTEND_URL}/admin.html" style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">Gérer les commandes</a></div></div></body></html>`
+                `📦 New manual order - ${typeLabel}`,
+                `<html><body style="font-family:Arial,sans-serif;padding:20px;background:#f4f4f4"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:30px"><h2 style="color:#6366f1">📦 New manual order</h2><table style="width:100%;border-collapse:collapse"><tr><td style="padding:8px;color:#666">Type</td><td style="padding:8px;font-weight:bold">${typeLabel}</td></tr><tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Volume</td><td style="padding:8px;font-weight:bold">${volume}</td></tr><tr><td style="padding:8px;color:#666">Amount</td><td style="padding:8px;font-weight:bold;color:#6366f1">$${totalPrice}</td></tr><tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Customer</td><td style="padding:8px">${req.user.email}</td></tr><tr><td style="padding:8px;color:#666">Notes</td><td style="padding:8px">${notes || '—'}</td></tr></table><div style="margin-top:20px;text-align:center"><a href="${process.env.FRONTEND_URL}/admin.html" style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">Manage orders</a></div></div></body></html>`
             );
         }
     } catch(emailErr) {
@@ -1381,7 +1383,7 @@ app.post('/api/manual-order', authMiddleware, async (req, res) => {
       userId: req.user._id,
       type: 'purchase',
       amount: totalPrice,
-      description: `Commande ${typeLabel} - ${volume}`,
+      description: `Order ${typeLabel} - ${volume}`,
       balanceBefore,
       balanceAfter: req.user.balance,
       proxyDetails: { orderId: order._id, type, volume }
@@ -1389,7 +1391,7 @@ app.post('/api/manual-order', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Commande envoyée ! Notre équipe va vous livrer vos proxies ${typeLabel} sous peu.`,
+      message: `Order placed! Our team will deliver your ${typeLabel} proxies shortly.`,
       orderId: order._id,
       userBalance: req.user.balance
     });
@@ -1434,13 +1436,13 @@ app.get('/api/admin/manual-orders', authMiddleware, adminMiddleware, async (req,
 app.post('/api/admin/manual-orders/:id/processing', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const order = await ManualOrder.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Commande non trouvée' });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
 
     order.status = 'processing';
     order.updatedAt = new Date();
     await order.save();
 
-    res.json({ success: true, message: 'Commande marquée en traitement' });
+    res.json({ success: true, message: 'Order marked as processing' });
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
   }
@@ -1451,10 +1453,10 @@ app.post('/api/admin/manual-orders/:id/deliver', authMiddleware, adminMiddleware
   try {
     const { host, port, username, password, protocol, expiresAt, deliveryNotes } = req.body;
     const order = await ManualOrder.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Commande non trouvée' });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
 
     if (order.status === 'delivered') {
-      return res.status(400).json({ error: 'Commande déjà livrée' });
+      return res.status(400).json({ error: 'Order already delivered' });
     }
 
     if (!host || !port) {
@@ -1493,15 +1495,15 @@ app.post('/api/admin/manual-orders/:id/deliver', authMiddleware, adminMiddleware
         const connStr = `${(protocol||'http').toLowerCase()}://${credStr}${host}:${port}`;
         await sendEmailViaBrevo(
           user.email,
-          `✅ Votre commande proxy est livrée !`,
-          `<html><body style="font-family:Arial,sans-serif;padding:20px;background:#f4f4f4"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:30px"><h2 style="color:#6366f1">✅ Commande livrée !</h2><p>Votre proxy <strong>${order.typeLabel}</strong> est prêt.</p><table style="width:100%;border-collapse:collapse;margin-top:12px"><tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Type</td><td style="padding:8px;font-weight:bold">${protoLabel}</td></tr><tr><td style="padding:8px;color:#666">Hôte:Port</td><td style="padding:8px;font-family:monospace">${host}:${port}</td></tr>${username?`<tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Identifiant</td><td style="padding:8px;font-family:monospace">${username}</td></tr><tr><td style="padding:8px;color:#666">Mot de passe</td><td style="padding:8px;font-family:monospace">${password}</td></tr>`:''}${computedExpiry?`<tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Expire le</td><td style="padding:8px">${computedExpiry.toLocaleDateString('fr-FR')}</td></tr>`:''}</table>${deliveryNotes?`<p style="margin-top:16px;color:#555">${deliveryNotes}</p>`:''}<div style="background:#f0f0ff;border-radius:8px;padding:12px;margin-top:16px;font-family:monospace;font-size:.85rem;word-break:break-all">${connStr}</div></div></body></html>`
+          `✅ Your proxy order has been delivered!`,
+          `<html><body style="font-family:Arial,sans-serif;padding:20px;background:#f4f4f4"><div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:30px"><h2 style="color:#6366f1">✅ Order delivered!</h2><p>Your proxy <strong>${order.typeLabel}</strong> is ready.</p><table style="width:100%;border-collapse:collapse;margin-top:12px"><tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Type</td><td style="padding:8px;font-weight:bold">${protoLabel}</td></tr><tr><td style="padding:8px;color:#666">Host:Port</td><td style="padding:8px;font-family:monospace">${host}:${port}</td></tr>${username?`<tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Username</td><td style="padding:8px;font-family:monospace">${username}</td></tr><tr><td style="padding:8px;color:#666">Password</td><td style="padding:8px;font-family:monospace">${password}</td></tr>`:''}${computedExpiry?`<tr style="background:#f9f9f9"><td style="padding:8px;color:#666">Expires on</td><td style="padding:8px">${computedExpiry.toLocaleDateString('en-GB')}</td></tr>`:''}</table>${deliveryNotes?`<p style="margin-top:16px;color:#555">${deliveryNotes}</p>`:''}<div style="background:#f0f0ff;border-radius:8px;padding:12px;margin-top:16px;font-family:monospace;font-size:.85rem;word-break:break-all">${connStr}</div></div></body></html>`
         );
       }
     } catch(emailErr) {
       console.error('Email delivery notification error:', emailErr.message);
     }
 
-    res.json({ success: true, message: 'Commande livrée avec succès' });
+    res.json({ success: true, message: 'Order delivered successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
   }
@@ -1511,14 +1513,14 @@ app.post('/api/admin/manual-orders/:id/deliver', authMiddleware, adminMiddleware
 app.post('/api/admin/manual-orders/:id/cancel', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const order = await ManualOrder.findById(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Commande non trouvée' });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
 
     if (['delivered', 'cancelled'].includes(order.status)) {
-      return res.status(400).json({ error: 'Commande déjà traitée ou annulée' });
+      return res.status(400).json({ error: 'Order already processed or cancelled' });
     }
 
     const user = await User.findById(order.userId);
-    if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     // Rembourser
     const balanceBefore = user.balance;
@@ -1534,12 +1536,12 @@ app.post('/api/admin/manual-orders/:id/cancel', authMiddleware, adminMiddleware,
       userId: user._id,
       type: 'credit',
       amount: order.totalPrice,
-      description: `Remboursement commande annulée - ${order.typeLabel} ${order.volume}`,
+      description: `Refund for cancelled order - ${order.typeLabel} ${order.volume}`,
       balanceBefore,
       balanceAfter: user.balance
     }).save();
 
-    res.json({ success: true, message: 'Commande annulée et remboursée', newBalance: user.balance });
+    res.json({ success: true, message: 'Order cancelled and refunded', newBalance: user.balance });
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur' });
   }
@@ -1719,7 +1721,7 @@ app.get('/api/cryptapi/callback', async (req, res) => {
       return res.send('*ok*'); // Répondre *ok* pour éviter les retries
     }
 
-    // Mettre à jour le paiement
+    // Update the payment
     payment.status = 'paid';
     payment.txidIn = txid_in || '';
     payment.valueCoin = parseFloat(value_coin) || 0;
@@ -1737,7 +1739,7 @@ app.get('/api/cryptapi/callback', async (req, res) => {
     user.balance += amountNum;
     await user.save();
 
-    // Mettre à jour la Recharge associée
+    // Update the associated recharge
     await Recharge.findOneAndUpdate(
       { userId, faucetpayUsername: { $regex: `CryptAPI.*${address_in.slice(0, 12)}` } },
       { status: 'approved' }
@@ -1763,7 +1765,7 @@ app.get('/api/cryptapi/callback', async (req, res) => {
 
   } catch (error) {
     console.error('Erreur callback CryptAPI:', error.message);
-    // Toujours répondre *ok* pour éviter les retries infinis
+    // Always respond *ok* to avoid infinite retries
     res.send('*ok*');
   }
 });
@@ -1791,20 +1793,20 @@ async function sendBalanceNotification(user, amountCredited, newBalance, method)
 <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:30px;">
   <div style="max-width:500px;margin:0 auto;background:#fff;border-radius:12px;padding:40px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
     <div style="text-align:center;margin-bottom:24px;"><h1 style="color:#6366f1;font-size:26px;margin:0;">🌐 ProxyFlow</h1></div>
-    <h2 style="color:#1f2937;margin-bottom:8px;">💰 Votre solde a été crédité</h2>
+    <h2 style="color:#1f2937;margin-bottom:8px;">💰 Your balance has been credited</h2>
     <p style="color:#6b7280;line-height:1.6;">Un paiement a été confirmé sur votre compte ProxyFlow :</p>
     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:16px;margin:20px 0;text-align:center;">
       <div style="font-size:28px;font-weight:800;color:#16a34a;">+$${Number(amountCredited).toFixed(2)}</div>
       <div style="color:#6b7280;font-size:14px;margin-top:4px;">via ${method || 'Crypto'}</div>
     </div>
     <div style="background:#f8fafc;border-radius:8px;padding:14px;margin-bottom:20px;">
-      <span style="color:#6b7280;">Nouveau solde : </span><strong style="color:#1f2937;">$${Number(newBalance).toFixed(2)}</strong>
+      <span style="color:#6b7280;">New balance: </span><strong style="color:#1f2937;">$${Number(newBalance).toFixed(2)}</strong>
     </div>
     <p style="color:#9ca3af;font-size:12px;text-align:center;">Vous recevez cet email car les notifications sont activées sur votre compte ProxyFlow.</p>
   </div>
 </body></html>`;
   try {
-    await sendEmail(toEmail, '✅ Solde crédité - ProxyFlow', html);
+    await sendEmail(toEmail, '✅ Balance credited - ProxyFlow', html);
     console.log('📧 Balance notification sent to', toEmail);
   } catch (err) {
     console.error('Notify email error:', err.message);
@@ -1843,6 +1845,6 @@ app.listen(PORT, async () => {
     await createDefaultAdmin();
     console.log('\n✅ Système prêt!\n');
   } catch (error) {
-    console.log('\n⚠️  Vérifiez le .env\n');
+    console.log('\n⚠️  Please check your .env file\n');
   }
 });
