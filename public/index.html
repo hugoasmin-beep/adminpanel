@@ -1,513 +1,772 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NRPROXY — Backend API</title>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    :root {
-      --p: #6366f1;
-      --p2: #8b5cf6;
-      --bg: #0b0d14;
-      --card: #111320;
-      --border: rgba(255,255,255,0.06);
-      --text: #f1f5f9;
-      --muted: #475569;
-      --success: #10b981;
-      --warning: #f59e0b;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NRPROXY - Premium Proxies</title>
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
 
-    body {
-      font-family: 'Outfit', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+    <style>
+        :root {
+            --accent: #6366f1;
+            --accent2: #8b5cf6;
+            --accent3: #06b6d4;
+        }
 
-    /* Grid background */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
-      background-size: 40px 40px;
-      pointer-events: none;
-      z-index: 0;
-    }
+        body { font-family: 'DM Sans', sans-serif; }
+        h1,h2,h3,h4,h5 { font-family: 'Syne', sans-serif; }
 
-    /* Glow orbs */
-    .orb {
-      position: fixed;
-      border-radius: 50%;
-      filter: blur(120px);
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.35;
-    }
-    .orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, #6366f1, transparent); top: -200px; left: -200px; animation: drift1 12s ease-in-out infinite; }
-    .orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, #8b5cf6, transparent); bottom: -100px; right: -100px; animation: drift2 15s ease-in-out infinite; }
+        /* ── Navbar ── */
+        .navbar {
+            padding: 1.1rem 0;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+            position: fixed; top:0; width:100%; z-index:1000;
+            transition: all 0.3s;
+        }
+        [data-theme="dark"] .navbar {
+            background: rgba(15,23,42,0.9);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.06);
+        }
 
-    @keyframes drift1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(40px, 30px); } }
-    @keyframes drift2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px, -40px); } }
+        /* ── Hero ── */
+        .hero-section {
+            min-height: 100vh;
+            display: flex; align-items: center;
+            position: relative; overflow: hidden;
+            background: var(--header-bg);
+            padding: 7rem 0 5rem;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse 80% 60% at 70% 40%, rgba(99,102,241,0.3) 0%, transparent 60%),
+                        radial-gradient(ellipse 50% 50% at 10% 80%, rgba(6,182,212,0.2) 0%, transparent 55%);
+            pointer-events: none;
+        }
+        .hero-grid {
+            position: absolute; inset: 0; opacity: 0.06;
+            background-image: linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .hero-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 100px;
+            padding: 6px 16px; font-size: 0.85rem;
+            color: white; margin-bottom: 1.5rem;
+            backdrop-filter: blur(8px);
+        }
+        .hero-title {
+            font-size: clamp(2.8rem, 6vw, 5rem);
+            font-weight: 800;
+            color: white;
+            line-height: 1.05;
+            margin-bottom: 1.5rem;
+        }
+        .hero-title .highlight {
+            background: linear-gradient(135deg, #a5f3fc, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-subtitle {
+            font-size: 1.15rem;
+            color: rgba(255,255,255,0.8);
+            max-width: 520px;
+            margin-bottom: 2.5rem;
+            line-height: 1.7;
+        }
+        .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn-hero {
+            padding: 14px 32px; border-radius: 12px;
+            font-weight: 700; font-size: 1rem;
+            transition: all 0.2s; border: none; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-hero-primary {
+            background: white; color: #6366f1;
+        }
+        .btn-hero-primary:hover { background: #f0f0ff; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.2); }
+        .btn-hero-outline {
+            background: rgba(255,255,255,0.15);
+            color: white; border: 1px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(8px);
+        }
+        .btn-hero-outline:hover { background: rgba(255,255,255,0.25); transform: translateY(-2px); }
 
-    /* Main layout */
-    .page {
-      position: relative;
-      z-index: 1;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 20px;
-    }
+        /* Stats strip */
+        .stats-strip {
+            display: flex; flex-wrap: wrap; gap: 2rem;
+            margin-top: 3rem; padding-top: 2.5rem;
+            border-top: 1px solid rgba(255,255,255,0.15);
+        }
+        .stat-item { color: white; }
+        .stat-number { font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800; }
+        .stat-label { font-size: 0.8rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em; }
 
-    /* Logo bar */
-    .topbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      padding: 18px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(11,13,20,0.8);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-      z-index: 100;
-    }
+        /* Hero visual */
+        .hero-visual {
+            position: relative; z-index: 1;
+        }
+        .hero-card-float {
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(16px);
+            border-radius: 20px; padding: 1.5rem;
+            color: white;
+        }
+        .proxy-type-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 8px; padding: 6px 12px;
+            font-size: 0.82rem; font-weight: 600;
+            margin: 4px;
+        }
+        .speed-bar { height: 4px; border-radius: 100px; background: rgba(255,255,255,0.2); overflow: hidden; margin-top: 6px; }
+        .speed-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, #06b6d4, #6366f1); transition: width 1.5s ease; }
 
-    .brand {
-      font-family: 'Space Mono', monospace;
-      font-size: 1.1rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #818cf8, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      letter-spacing: -0.02em;
-    }
+        /* ── Section: Proxy Types ── */
+        .section-eyebrow {
+            font-size: 0.78rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.12em;
+            color: var(--accent); margin-bottom: 0.75rem;
+        }
+        .section-title {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-weight: 800; margin-bottom: 1rem;
+        }
 
-    .status-pill {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      background: rgba(16,185,129,0.1);
-      border: 1px solid rgba(16,185,129,0.25);
-      border-radius: 30px;
-      padding: 5px 14px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #34d399;
-      font-family: 'Space Mono', monospace;
-    }
+        /* ── Proxy Category Cards ── */
+        .proxy-category-card {
+            border-radius: 24px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            position: relative;
+        }
+        .proxy-category-card:hover { transform: translateY(-8px); box-shadow: 0 24px 60px rgba(0,0,0,0.15); }
 
-    .status-dot {
-      width: 7px; height: 7px;
-      background: #10b981;
-      border-radius: 50%;
-      animation: pulse-dot 2s ease-in-out infinite;
-    }
+        .cat-header {
+            padding: 2rem 2rem 1.5rem;
+            position: relative; overflow: hidden;
+        }
+        .cat-header::before {
+            content: '';
+            position: absolute; top:-40px; right:-40px;
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            opacity: 0.15;
+            background: white;
+        }
+        .cat-emoji { font-size: 2.5rem; margin-bottom: 0.75rem; display: block; }
+        .cat-name { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: white; }
+        .cat-desc { font-size: 0.85rem; color: rgba(255,255,255,0.85); margin-top: 4px; }
 
-    @keyframes pulse-dot {
-      0%,100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.8); }
-    }
+        /* Color themes */
+        .cat-datacenter .cat-header { background: linear-gradient(135deg, #0f172a, #1e3a5f); }
+        .cat-residential .cat-header { background: linear-gradient(135deg, #14532d, #166534); }
+        .cat-residential-pro .cat-header { background: linear-gradient(135deg, #1c1c2e, #2d1b69); }
+        .cat-mobile .cat-header { background: linear-gradient(135deg, #7c2d12, #9a3412); }
+        .cat-static .cat-header { background: linear-gradient(135deg, #164e63, #155e75); }
 
-    /* Hero */
-    .hero {
-      text-align: center;
-      max-width: 680px;
-      margin-top: 60px;
-      animation: fadeUp 0.8s ease both;
-    }
+        .cat-body {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 24px 24px;
+            padding: 1.5rem;
+        }
+        .price-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+        .price-row:last-child { border-bottom: none; }
+        .price-vol { color: var(--text-muted); }
+        .price-val { font-weight: 700; color: var(--text-color); font-family: 'Syne', sans-serif; }
+        .cat-badge {
+            display: inline-block;
+            font-size: 0.7rem; font-weight: 700;
+            padding: 2px 8px; border-radius: 100px;
+            margin-bottom: 1rem;
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .badge-auto { background: #dcfce7; color: #166534; }
+        .badge-manual { background: #fef3c7; color: #92400e; }
+        [data-theme="dark"] .badge-auto { background: #14532d; color: #86efac; }
+        [data-theme="dark"] .badge-manual { background: #451a03; color: #fbbf24; }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+        .cat-cta {
+            width: 100%; padding: 10px;
+            border-radius: 10px; font-weight: 700;
+            font-size: 0.9rem; border: none; cursor: pointer;
+            transition: all 0.2s; margin-top: 1rem;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .cat-datacenter .cat-cta { background: #0f172a; color: white; }
+        .cat-datacenter .cat-cta:hover { background: #1e3a5f; }
+        .cat-residential .cat-cta { background: #14532d; color: white; }
+        .cat-residential .cat-cta:hover { background: #166534; }
+        .cat-residential-pro .cat-cta { background: #2d1b69; color: white; }
+        .cat-residential-pro .cat-cta:hover { background: #3730a3; }
+        .cat-mobile .cat-cta { background: #7c2d12; color: white; }
+        .cat-mobile .cat-cta:hover { background: #9a3412; }
+        .cat-static .cat-cta { background: #164e63; color: white; }
+        .cat-static .cat-cta:hover { background: #155e75; }
 
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(99,102,241,0.1);
-      border: 1px solid rgba(99,102,241,0.25);
-      border-radius: 30px;
-      padding: 6px 16px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #a5b4fc;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 28px;
-      font-family: 'Space Mono', monospace;
-    }
+        /* ── Features ── */
+        .feature-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+        .feature-item {
+            display: flex; gap: 1rem; align-items: flex-start;
+            padding: 1.5rem; border-radius: 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .feature-item:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+        .fi-icon {
+            width: 44px; height: 44px; border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 1.1rem; flex-shrink: 0;
+        }
+        .fi-title { font-weight: 700; margin-bottom: 4px; }
+        .fi-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
 
-    h1 {
-      font-size: clamp(2.4rem, 6vw, 3.8rem);
-      font-weight: 900;
-      line-height: 1.1;
-      letter-spacing: -0.03em;
-      margin-bottom: 20px;
-    }
+        /* ── CTA Banner ── */
+        .cta-banner {
+            background: var(--header-bg);
+            border-radius: 28px;
+            padding: 4rem 3rem;
+            text-align: center;
+            position: relative; overflow: hidden;
+        }
+        .cta-banner::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.15), transparent 60%);
+        }
+        .cta-banner h2 { color: white; font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; }
+        .cta-banner p { color: rgba(255,255,255,0.8); max-width: 500px; margin: 1rem auto 2rem; }
 
-    h1 .gradient {
-      background: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #c4b5fd 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+        /* ── Footer ── */
+        .footer {
+            padding: 3rem 0 1.5rem;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+        }
 
-    .hero-sub {
-      font-size: 1.05rem;
-      color: var(--muted);
-      line-height: 1.7;
-      margin-bottom: 40px;
-      font-weight: 400;
-    }
+        /* ── Navbar buttons ── */
+        .nav-utils { display: flex; gap: 0.5rem; align-items: center; }
+        .util-btn {
+            background: none; border: 1px solid var(--border-color);
+            color: var(--text-color); font-size: 1rem; cursor: pointer;
+            padding: 6px 10px; border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .util-btn:hover { background: var(--bg-color); }
 
-    /* Action buttons */
-    .btn-row {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 60px;
-    }
+        /* ── Animations ── */
+        @keyframes floatUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .hero-content { animation: floatUp 0.7s ease both; }
+        .hero-visual  { animation: floatUp 0.7s 0.2s ease both; }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      padding: 13px 26px;
-      border-radius: 12px;
-      font-weight: 700;
-      font-size: 0.9rem;
-      text-decoration: none;
-      font-family: 'Outfit', sans-serif;
-      cursor: pointer;
-      border: none;
-      transition: all 0.22s;
-    }
+        /* Dark mode adjustments */
+        [data-theme="dark"] .btn-hero-primary { color: #6366f1; }
 
-    .btn-primary {
-      background: linear-gradient(135deg, var(--p), var(--p2));
-      color: white;
-      box-shadow: 0 4px 20px rgba(99,102,241,0.35);
-    }
+        /* Specs list inside cards */
+        .spec-list {
+            list-style: none; margin: 0 0 1rem 0; padding: 0;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .spec-list li {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.8rem; color: var(--text-muted);
+        }
+        .spec-list li .spec-icon {
+            width: 18px; height: 18px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.65rem; flex-shrink: 0;
+            background: rgba(99,102,241,0.1); color: #6366f1;
+        }
+        .spec-list li strong { color: var(--text-color); font-weight: 600; }
 
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 28px rgba(99,102,241,0.5);
-    }
+        /* Countries expandable dropdown */
+        .countries-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: rgba(99,102,241,0.1); color: #6366f1;
+            padding: 2px 8px; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 700; cursor: pointer;
+            border: 1px solid rgba(99,102,241,0.2);
+            transition: all 0.2s; user-select: none;
+        }
+        .countries-badge:hover { background: rgba(99,102,241,0.18); }
 
-    .btn-ghost {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      color: var(--text);
-    }
+        .countries-dropdown {
+            display: none;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin: 6px 0 8px 0;
+            max-height: 120px;
+            overflow-y: auto;
+            animation: fadeIn 0.2s ease;
+        }
+        .countries-dropdown.open { display: block; }
+        .countries-grid-small {
+            font-size: 0.75rem;
+            line-height: 2;
+            color: var(--text-muted);
+            word-spacing: 4px;
+        }
 
-    .btn-ghost:hover {
-      background: rgba(255,255,255,0.09);
-      transform: translateY(-2px);
-    }
+        /* Divider between specs and prices */
+        .card-divider {
+            border: none; border-top: 1px dashed var(--border-color);
+            margin: 12px 0;
+        }
 
-    /* Stats row */
-    .stats-row {
-      display: flex;
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      margin-bottom: 60px;
-      animation: fadeUp 0.8s 0.2s ease both;
-      width: 100%;
-      max-width: 560px;
-    }
+        /* Country flags list for Static ISP */
+        .countries-grid {
+            display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 1rem;
+        }
+        .country-tag {
+            font-size: 0.72rem; padding: 2px 7px; border-radius: 6px;
+            background: var(--bg-color); border: 1px solid var(--border-color);
+            color: var(--text-muted); white-space: nowrap;
+        }
 
-    .stat {
-      flex: 1;
-      background: var(--card);
-      padding: 20px 16px;
-      text-align: center;
-    }
-
-    .stat-value {
-      font-family: 'Space Mono', monospace;
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #818cf8;
-      margin-bottom: 4px;
-    }
-
-    .stat-label {
-      font-size: 0.72rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      font-weight: 600;
-    }
-
-    /* Endpoint cards */
-    .endpoints {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 12px;
-      width: 100%;
-      max-width: 900px;
-      animation: fadeUp 0.8s 0.4s ease both;
-    }
-
-    .endpoint-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      text-decoration: none;
-      color: var(--text);
-      transition: all 0.2s;
-      cursor: pointer;
-    }
-
-    .endpoint-card:hover {
-      border-color: rgba(99,102,241,0.4);
-      background: rgba(99,102,241,0.05);
-      transform: translateY(-2px);
-    }
-
-    .endpoint-icon {
-      width: 42px; height: 42px;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem;
-      flex-shrink: 0;
-    }
-
-    .endpoint-info { flex: 1; min-width: 0; }
-
-    .endpoint-name {
-      font-weight: 700;
-      font-size: 0.9rem;
-      margin-bottom: 3px;
-    }
-
-    .endpoint-path {
-      font-family: 'Space Mono', monospace;
-      font-size: 0.72rem;
-      color: var(--muted);
-    }
-
-    .endpoint-arrow {
-      color: var(--muted);
-      font-size: 0.8rem;
-      transition: transform 0.2s, color 0.2s;
-    }
-
-    .endpoint-card:hover .endpoint-arrow {
-      transform: translateX(3px);
-      color: #818cf8;
-    }
-
-    /* Method badge */
-    .method {
-      font-family: 'Space Mono', monospace;
-      font-size: 0.62rem;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 5px;
-      margin-left: 6px;
-    }
-    .get  { background: rgba(16,185,129,0.15); color: #34d399; }
-    .post { background: rgba(99,102,241,0.15); color: #818cf8; }
-
-    /* Footer */
-    .footer {
-      margin-top: 60px;
-      text-align: center;
-      font-size: 0.78rem;
-      color: var(--muted);
-      font-family: 'Space Mono', monospace;
-      animation: fadeUp 0.8s 0.6s ease both;
-      padding-bottom: 30px;
-    }
-
-    .footer span { color: #818cf8; }
-
-    /* Live time */
-    #live-time {
-      font-family: 'Space Mono', monospace;
-      font-size: 0.72rem;
-      color: var(--muted);
-    }
-
-    @media (max-width: 560px) {
-      .stats-row { flex-direction: column; gap: 1px; }
-      .btn-row { flex-direction: column; align-items: center; }
-    }
-  </style>
+        @media (max-width: 768px) {
+            .hero-visual { display: none; }
+            .stats-strip { gap: 1.5rem; }
+        }
+    </style>
 </head>
 <body>
 
-<div class="orb orb-1"></div>
-<div class="orb orb-2"></div>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center text-decoration-none" href="index.html">
+                <i class="fas fa-globe me-2 text-primary fs-5"></i>
+                <span class="brand-name-color fw-bold" style="font-family:'Syne',sans-serif;font-size:1.2rem;">NRPROXY</span>
+            </a>
+            <div class="d-flex align-items-center gap-3 ms-auto">
+                <div class="nav-utils">
+                    <a href="faq.html" class="util-btn" style="text-decoration:none;" title="FAQ"><i class="fas fa-book-open"></i></a>
+                    <button class="util-btn" onclick="toggleLang()" id="langBtn"><span id="langIcon">🇫🇷</span></button>
+                    <button class="util-btn" onclick="toggleTheme()" id="themeBtn"><i id="themeIcon" class="fas fa-moon"></i></button>
+                </div>
+                <a href="login.html" class="btn btn-outline-primary d-none d-md-flex" style="border-radius:10px;font-weight:600;" data-i18n="btn_login">Login</a>
+                <a href="register.html" class="btn btn-primary d-none d-md-flex" style="border-radius:10px;font-weight:600;" data-i18n="btn_start">Get Started</a>
+            </div>
+        </div>
+    </nav>
 
-<!-- Topbar -->
-<div class="topbar">
-  <div class="brand">🌐 NRPROXY</div>
-  <div style="display:flex;align-items:center;gap:12px">
-    <div id="live-time">--:--:--</div>
-    <div class="status-pill">
-      <div class="status-dot"></div>
-      SYSTEM ONLINE
-    </div>
-  </div>
-</div>
+    <!-- Hero -->
+    <header class="hero-section">
+        <div class="hero-grid"></div>
+        <div class="container position-relative z-1">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6 hero-content">
+                    <div class="hero-badge">
+                        <span style="width:6px;height:6px;background:#4ade80;border-radius:50%;display:inline-block;box-shadow:0 0 0 2px rgba(74,222,128,0.3)"></span>
+                        <span data-i18n="idx_badge">Active network in 50+ countries</span>
+                    </div>
+                    <h1 class="hero-title" data-i18n="idx_hero_title">
+                        Premium Proxies You Can Trust
+                    </h1>
+                    <p class="hero-subtitle" data-i18n="idx_hero_subtitle">
+                        Datacenter, Residential, Mobile, Static — a solution for every use. Fast, anonymous, always available.
+                    </p>
+                    <div class="hero-cta">
+                        <a href="register.html" class="btn-hero btn-hero-primary"><span data-i18n="idx_hero_cta1">Get Started Free</span> <i class="fas fa-arrow-right"></i></a>
+                        <a href="#pricing" class="btn-hero btn-hero-outline"><i class="fas fa-list"></i> <span data-i18n="idx_hero_cta2">See pricing</span></a>
+                    </div>
+                    <div class="stats-strip">
+                        <div class="stat-item">
+                            <div class="stat-number">50+</div>
+                            <div class="stat-label" data-i18n="idx_stat_countries">Countries</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">99.9%</div>
+                            <div class="stat-label">Uptime</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">5</div>
+                            <div class="stat-label" data-i18n="idx_stat_proxy_types">Proxy Types</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">24/7</div>
+                            <div class="stat-label">Support</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 hero-visual">
+                    <div class="hero-card-float">
+                        <div class="mb-3 d-flex justify-content-between align-items-center">
+                            <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:white;" data-i18n="idx_card_types">Proxy Types</span>
+                            <span style="font-size:0.75rem;color:rgba(255,255,255,0.6);" data-i18n="idx_card_active">Active now</span>
+                        </div>
 
-<!-- Main content -->
-<div class="page">
-  <div class="hero">
-    <div class="hero-badge">
-      <i class="fas fa-server" style="font-size:.7rem"></i>
-      Backend API v1.0
-    </div>
-    <h1>
-      Proxy Shop<br>
-      <span class="gradient">Backend API</span>
-    </h1>
-    <p class="hero-sub">
-      The NRPROXY API server is running and ready to handle requests.<br>
-      Manage users, proxies, recharges and orders from the admin panel.
-    </p>
+                        <div class="d-flex flex-wrap mb-3">
+                            <div class="proxy-type-pill">🏢 Datacenter</div>
+                            <div class="proxy-type-pill">🍀 Residential</div>
+                            <div class="proxy-type-pill">💻 Residential Pro</div>
+                            <div class="proxy-type-pill">📱 Mobile</div>
+                            <div class="proxy-type-pill">🏎️ Static ISP</div>
+                        </div>
 
-    <div class="btn-row">
-      <a href="/admin.html" class="btn btn-primary">
-        <i class="fas fa-crown"></i> Admin Panel
-      </a>
-      <a href="/health" class="btn btn-ghost">
-        <i class="fas fa-heartbeat"></i> Health Check
-      </a>
-    </div>
-  </div>
+                        <div class="mb-2" style="font-size:0.8rem;color:rgba(255,255,255,0.7);margin-bottom:6px;" data-i18n="idx_card_speed">Network speed</div>
+                        <div class="speed-bar"><div class="speed-fill" style="width:92%"></div></div>
+                        <div class="d-flex justify-content-between mt-1" style="font-size:0.75rem;color:rgba(255,255,255,0.5);">
+                            <span>0 Mbps</span><span>Excellent 92%</span>
+                        </div>
 
-  <!-- Stats -->
-  <div class="stats-row" id="stats-row">
-    <div class="stat">
-      <div class="stat-value" id="stat-users">—</div>
-      <div class="stat-label">Total Users</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value" id="stat-proxies">—</div>
-      <div class="stat-label">Proxies Sold</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value" id="stat-revenue">—</div>
-      <div class="stat-label">Revenue</div>
-    </div>
-  </div>
+                        <div class="mt-3 pt-3" style="border-top:1px solid rgba(255,255,255,0.15)">
+                            <div class="d-flex justify-content-between" style="font-size:0.82rem;color:rgba(255,255,255,0.8);">
+                                <span><i class="fas fa-check-circle text-success me-1"></i> HTTP & SOCKS5</span>
+                                <span><i class="fas fa-check-circle text-success me-1"></i> Rotation auto</span>
+                                <span><i class="fas fa-check-circle text-success me-1"></i> No-logs</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-  <!-- Endpoint cards -->
-  <div class="endpoints">
+    <!-- Proxy Types / Pricing -->
+    <section class="py-6" id="pricing" style="padding: 5rem 0;">
+        <div class="container">
+            <div class="text-center mb-5">
+                <div class="section-eyebrow" data-i18n="idx_pricing_eyebrow">Transparent pricing</div>
+                <h2 class="section-title" data-i18n="pricing_title">Our Proxy Plans</h2>
+                <p class="text-muted mx-auto" style="max-width:500px;font-size:1rem;">Choose the type that fits your use case. Mobile, Datacenter, Residential and Static ISP proxies are all available.</p>
+            </div>
 
-    <a href="/admin.html" class="endpoint-card">
-      <div class="endpoint-icon" style="background:rgba(99,102,241,0.15)">👑</div>
-      <div class="endpoint-info">
-        <div class="endpoint-name">Admin Panel</div>
-        <div class="endpoint-path">/admin.html</div>
-      </div>
-      <i class="fas fa-arrow-right endpoint-arrow"></i>
-    </a>
+            <div class="row g-4">
 
-    <a href="/health" class="endpoint-card">
-      <div class="endpoint-icon" style="background:rgba(16,185,129,0.15)">🏥</div>
-      <div class="endpoint-info">
-        <div class="endpoint-name">Health Check <span class="method get">GET</span></div>
-        <div class="endpoint-path">/health</div>
-      </div>
-      <i class="fas fa-arrow-right endpoint-arrow"></i>
-    </a>
+                <!-- Datacenter -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="proxy-category-card cat-datacenter h-100">
+                        <div class="cat-header">
+                            <span class="cat-emoji">🏢</span>
+                            <div class="cat-name">Datacenter</div>
+                            <div class="cat-desc">High speed, ideal for intensive scraping</div>
+                        </div>
+                        <div class="cat-body">
+                            <span class="cat-badge badge-manual">⚙️ Manual delivery</span>
+                            <ul class="spec-list">
+                                <li><span class="spec-icon"><i class="fas fa-sync-alt"></i></span><span><strong>Location:</strong> Rotating</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-plug"></i></span><span><strong>Protocol:</strong> HTTP / SOCKS5</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-infinity"></i></span><span><strong>Duration:</strong> Unlimited</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-globe"></i></span><span><strong>Pays:</strong> <span class="countries-badge" onclick="toggleCountries('dc-countries')">160+ countries <i class="fas fa-chevron-down" id="dc-countries-icon" style="font-size:0.65rem;"></i></span></span></li>
+                            </ul>
+                            <div class="countries-dropdown" id="dc-countries">
+                                <div class="countries-grid-small">
+                                    🇺🇸 US &nbsp;🇬🇧 GB &nbsp;🇩🇪 DE &nbsp;🇫🇷 FR &nbsp;🇳🇱 NL &nbsp;🇨🇦 CA &nbsp;🇦🇺 AU &nbsp;🇳🇿 NZ &nbsp;🇨🇭 CH &nbsp;🇸🇪 SE &nbsp;🇳🇴 NO &nbsp;🇩🇰 DK &nbsp;🇫🇮 FI &nbsp;🇮🇪 IE &nbsp;🇦🇹 AT &nbsp;🇧🇪 BE &nbsp;🇱🇺 LU &nbsp;🇪🇸 ES &nbsp;🇮🇹 IT &nbsp;🇵🇹 PT &nbsp;🇬🇷 GR &nbsp;🇵🇱 PL &nbsp;🇨🇿 CZ &nbsp;🇭🇺 HU &nbsp;🇷🇴 RO &nbsp;🇧🇬 BG &nbsp;🇸🇰 SK &nbsp;🇸🇮 SI &nbsp;🇭🇷 HR &nbsp;🇪🇪 EE &nbsp;🇱🇻 LV &nbsp;🇱🇹 LT &nbsp;🇨🇾 CY &nbsp;🇲🇹 MT &nbsp;🇮🇸 IS &nbsp;🇯🇵 JP &nbsp;🇰🇷 KR &nbsp;🇸🇬 SG &nbsp;🇭🇰 HK &nbsp;🇹🇼 TW &nbsp;🇨🇳 CN &nbsp;🇮🇳 IN &nbsp;🇹🇷 TR &nbsp;🇦🇪 AE &nbsp;🇸🇦 SA &nbsp;🇯🇴 JO &nbsp;🇮🇱 IL &nbsp;🇹🇭 TH &nbsp;🇲🇾 MY &nbsp;🇮🇩 ID &nbsp;🇵🇭 PH &nbsp;🇻🇳 VN &nbsp;🇷🇺 RU &nbsp;🇺🇦 UA &nbsp;🇰🇿 KZ &nbsp;🇲🇽 MX &nbsp;🇧🇷 BR &nbsp;🇦🇷 AR &nbsp;🇨🇱 CL &nbsp;🇨🇴 CO &nbsp;🇵🇪 PE &nbsp;🇿🇦 ZA &nbsp;🇳🇬 NG &nbsp;🇪🇬 EG &nbsp;🇲🇦 MA &nbsp;🇰🇪 KE &nbsp;+ more...
+                                </div>
+                            </div>
+                            <hr class="card-divider">
+                            <div class="price-row"><span class="price-vol">1 GB</span><span class="price-val">$1.20</span></div>
+                            <div class="price-row"><span class="price-vol">10 GB</span><span class="price-val">$11</span></div>
+                            <div class="price-row"><span class="price-vol">50 GB</span><span class="price-val">$47</span></div>
+                            <div class="price-row"><span class="price-vol">100 GB</span><span class="price-val">$85</span></div>
+                            <div class="price-row"><span class="price-vol">500 GB</span><span class="price-val">$390</span></div>
+                            <a href="register.html" class="cat-cta">Order <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>
 
-    <div class="endpoint-card" style="cursor:default">
-      <div class="endpoint-icon" style="background:rgba(245,158,11,0.15)">🔐</div>
-      <div class="endpoint-info">
-        <div class="endpoint-name">Auth <span class="method post">POST</span></div>
-        <div class="endpoint-path">/api/auth/login</div>
-      </div>
-      <i class="fas fa-lock endpoint-arrow" style="color:var(--muted)"></i>
-    </div>
+                <!-- Residential -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="proxy-category-card cat-residential h-100">
+                        <div class="cat-header">
+                            <span class="cat-emoji">🍀</span>
+                            <div class="cat-name">Residential</div>
+                            <div class="cat-desc">Real residential IPs, maximum anonymity</div>
+                        </div>
+                        <div class="cat-body">
+                            <span class="cat-badge badge-manual">⚙️ Manual delivery</span>
+                            <ul class="spec-list">
+                                <li><span class="spec-icon"><i class="fas fa-globe"></i></span><span><strong>Location:</strong> Dynamic</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-plug"></i></span><span><strong>Protocol:</strong> HTTP / SOCKS5</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-infinity"></i></span><span><strong>Duration:</strong> Unlimited</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-globe"></i></span><span><strong>Pays:</strong> <span class="countries-badge" onclick="toggleCountries('res-countries')">160+ countries <i class="fas fa-chevron-down" id="res-countries-icon" style="font-size:0.65rem;"></i></span></span></li>
+                            </ul>
+                            <div class="countries-dropdown" id="res-countries">
+                                <div class="countries-grid-small">
+                                    🇺🇸 US &nbsp;🇬🇧 GB &nbsp;🇩🇪 DE &nbsp;🇫🇷 FR &nbsp;🇳🇱 NL &nbsp;🇨🇦 CA &nbsp;🇦🇺 AU &nbsp;🇳🇿 NZ &nbsp;🇨🇭 CH &nbsp;🇸🇪 SE &nbsp;🇳🇴 NO &nbsp;🇩🇰 DK &nbsp;🇫🇮 FI &nbsp;🇮🇪 IE &nbsp;🇦🇹 AT &nbsp;🇧🇪 BE &nbsp;🇱🇺 LU &nbsp;🇪🇸 ES &nbsp;🇮🇹 IT &nbsp;🇵🇹 PT &nbsp;🇬🇷 GR &nbsp;🇵🇱 PL &nbsp;🇨🇿 CZ &nbsp;🇭🇺 HU &nbsp;🇷🇴 RO &nbsp;🇧🇬 BG &nbsp;🇸🇰 SK &nbsp;🇸🇮 SI &nbsp;🇭🇷 HR &nbsp;🇪🇪 EE &nbsp;🇱🇻 LV &nbsp;🇱🇹 LT &nbsp;🇨🇾 CY &nbsp;🇲🇹 MT &nbsp;🇮🇸 IS &nbsp;🇯🇵 JP &nbsp;🇰🇷 KR &nbsp;🇸🇬 SG &nbsp;🇭🇰 HK &nbsp;🇹🇼 TW &nbsp;🇨🇳 CN &nbsp;🇮🇳 IN &nbsp;🇹🇷 TR &nbsp;🇦🇪 AE &nbsp;🇸🇦 SA &nbsp;🇮🇱 IL &nbsp;🇹🇭 TH &nbsp;🇲🇾 MY &nbsp;🇮🇩 ID &nbsp;🇵🇭 PH &nbsp;🇻🇳 VN &nbsp;🇷🇺 RU &nbsp;🇺🇦 UA &nbsp;🇰🇿 KZ &nbsp;🇲🇽 MX &nbsp;🇧🇷 BR &nbsp;🇦🇷 AR &nbsp;🇨🇱 CL &nbsp;🇨🇴 CO &nbsp;🇵🇪 PE &nbsp;🇿🇦 ZA &nbsp;🇳🇬 NG &nbsp;🇪🇬 EG &nbsp;🇲🇦 MA &nbsp;🇰🇪 KE &nbsp;+ more...
+                                </div>
+                            </div>
+                            <hr class="card-divider">
+                            <div class="price-row"><span class="price-vol">1 GB</span><span class="price-val">$2.20</span></div>
+                            <div class="price-row"><span class="price-vol">10 GB</span><span class="price-val">$19</span></div>
+                            <div class="price-row"><span class="price-vol">50 GB</span><span class="price-val">$85</span></div>
+                            <div class="price-row"><span class="price-vol">100 GB</span><span class="price-val">$145</span></div>
+                            <div class="price-row"><span class="price-vol">500 GB</span><span class="price-val">$625</span></div>
+                            <a href="register.html" class="cat-cta">Order <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>
 
-    <div class="endpoint-card" style="cursor:default">
-      <div class="endpoint-icon" style="background:rgba(139,92,246,0.15)">🌍</div>
-      <div class="endpoint-info">
-        <div class="endpoint-name">Countries <span class="method get">GET</span></div>
-        <div class="endpoint-path">/api/countries</div>
-      </div>
-      <i class="fas fa-lock endpoint-arrow" style="color:var(--muted)"></i>
-    </div>
+                <!-- Residential Pro -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="proxy-category-card cat-residential-pro h-100">
+                        <div class="cat-header">
+                            <span class="cat-emoji">💻</span>
+                            <div class="cat-name">Residential Pro</div>
+                            <div class="cat-desc">Premium residential, maximum quality & rotation</div>
+                        </div>
+                        <div class="cat-body">
+                            <span class="cat-badge badge-manual">⚙️ Manual delivery</span>
+                            <ul class="spec-list">
+                                <li><span class="spec-icon"><i class="fas fa-sync-alt"></i></span><span><strong>Location:</strong> Rotating</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-plug"></i></span><span><strong>Protocol:</strong> HTTP / SOCKS5</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-infinity"></i></span><span><strong>Duration:</strong> Unlimited</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-globe"></i></span><span><strong>Pays:</strong> <span class="countries-badge" onclick="toggleCountries('pro-countries')">160+ countries <i class="fas fa-chevron-down" id="pro-countries-icon" style="font-size:0.65rem;"></i></span></span></li>
+                            </ul>
+                            <div class="countries-dropdown" id="pro-countries">
+                                <div class="countries-grid-small">
+                                    🇺🇸 US &nbsp;🇬🇧 GB &nbsp;🇩🇪 DE &nbsp;🇫🇷 FR &nbsp;🇳🇱 NL &nbsp;🇨🇦 CA &nbsp;🇦🇺 AU &nbsp;🇳🇿 NZ &nbsp;🇨🇭 CH &nbsp;🇸🇪 SE &nbsp;🇳🇴 NO &nbsp;🇩🇰 DK &nbsp;🇫🇮 FI &nbsp;🇮🇪 IE &nbsp;🇦🇹 AT &nbsp;🇧🇪 BE &nbsp;🇱🇺 LU &nbsp;🇪🇸 ES &nbsp;🇮🇹 IT &nbsp;🇵🇹 PT &nbsp;🇬🇷 GR &nbsp;🇵🇱 PL &nbsp;🇨🇿 CZ &nbsp;🇭🇺 HU &nbsp;🇷🇴 RO &nbsp;🇧🇬 BG &nbsp;🇸🇰 SK &nbsp;🇸🇮 SI &nbsp;🇭🇷 HR &nbsp;🇪🇪 EE &nbsp;🇱🇻 LV &nbsp;🇱🇹 LT &nbsp;🇨🇾 CY &nbsp;🇲🇹 MT &nbsp;🇮🇸 IS &nbsp;🇯🇵 JP &nbsp;🇰🇷 KR &nbsp;🇸🇬 SG &nbsp;🇭🇰 HK &nbsp;🇹🇼 TW &nbsp;🇨🇳 CN &nbsp;🇮🇳 IN &nbsp;🇹🇷 TR &nbsp;🇦🇪 AE &nbsp;🇸🇦 SA &nbsp;🇮🇱 IL &nbsp;🇹🇭 TH &nbsp;🇲🇾 MY &nbsp;🇮🇩 ID &nbsp;🇵🇭 PH &nbsp;🇻🇳 VN &nbsp;🇷🇺 RU &nbsp;🇺🇦 UA &nbsp;🇰🇿 KZ &nbsp;🇲🇽 MX &nbsp;🇧🇷 BR &nbsp;🇦🇷 AR &nbsp;🇨🇱 CL &nbsp;🇨🇴 CO &nbsp;🇵🇪 PE &nbsp;🇿🇦 ZA &nbsp;🇳🇬 NG &nbsp;🇪🇬 EG &nbsp;🇲🇦 MA &nbsp;🇰🇪 KE &nbsp;+ more...
+                                </div>
+                            </div>
+                            <hr class="card-divider">
+                            <div class="price-row"><span class="price-vol">1 GB</span><span class="price-val">$5.80</span></div>
+                            <div class="price-row"><span class="price-vol">5 GB</span><span class="price-val">$27</span></div>
+                            <div class="price-row"><span class="price-vol">10 GB</span><span class="price-val">$52</span></div>
+                            <div class="price-row"><span class="price-vol">50 GB</span><span class="price-val">$250</span></div>
+                            <div class="price-row"><span class="price-vol">100 GB</span><span class="price-val">$470</span></div>
+                            <a href="register.html" class="cat-cta">Order <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>
 
-    <div class="endpoint-card" style="cursor:default">
-      <div class="endpoint-icon" style="background:rgba(59,130,246,0.15)">💳</div>
-      <div class="endpoint-info">
-        <div class="endpoint-name">Create Proxy <span class="method post">POST</span></div>
-        <div class="endpoint-path">/api/create-proxy</div>
-      </div>
-      <i class="fas fa-lock endpoint-arrow" style="color:var(--muted)"></i>
-    </div>
+                <!-- Mobile — 2 packages, span 2 cols -->
+                <div class="col-md-12 col-lg-8">
+                    <div class="proxy-category-card cat-mobile h-100">
+                        <div class="cat-header">
+                            <span class="cat-emoji">📱</span>
+                            <div class="cat-name">Mobile Proxies</div>
+                            <div class="cat-desc">Real 4G/5G IPs · HTTP & SOCKS5 · Country switching · Instant delivery</div>
+                        </div>
+                        <div class="cat-body">
+                            <span class="cat-badge badge-auto">⚡ Automatic delivery</span>
+                            <ul class="spec-list" style="flex-direction:row;flex-wrap:wrap;gap:10px;margin-bottom:1rem;">
+                                <li><span class="spec-icon"><i class="fas fa-mobile-alt"></i></span><span><strong>Network:</strong> 4G / 5G</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-plug"></i></span><span><strong>Protocol:</strong> HTTP / SOCKS5</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-sync-alt"></i></span><span><strong>IP:</strong> Rotating</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-flag"></i></span><span><strong>Country:</strong> Switchable</span></li>
+                            </ul>
+                            <hr class="card-divider">
+                            <div class="row g-3">
+                                <!-- Golden Package -->
+                                <div class="col-md-6">
+                                    <div style="background:var(--bg-color);border-radius:14px;padding:1rem;border:1px solid var(--border-color);height:100%;">
+                                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                                            <span style="font-size:1.2rem;">✨</span>
+                                            <div>
+                                                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:0.95rem;">Golden Package</div>
+                                                <div style="font-size:0.72rem;color:var(--text-muted);">Country switching · High speed</div>
+                                            </div>
+                                        </div>
+                                        <div class="price-row"><span class="price-vol">2 hours</span><span class="price-val">$0.25</span></div>
+                                        <div class="price-row"><span class="price-vol">3 hours</span><span class="price-val">$0.30</span></div>
+                                        <div class="price-row"><span class="price-vol">12 hours</span><span class="price-val">$0.45</span></div>
+                                        <div class="price-row"><span class="price-vol">1 day</span><span class="price-val">$0.70</span></div>
+                                        <div class="price-row"><span class="price-vol">3 days</span><span class="price-val">$2.00</span></div>
+                                        <div class="price-row"><span class="price-vol">7 days</span><span class="price-val">$4.00</span></div>
+                                        <div class="price-row"><span class="price-vol">15 days</span><span class="price-val">$7.50</span></div>
+                                        <div class="price-row"><span class="price-vol">30 days</span><span class="price-val">$14.50</span></div>
+                                    </div>
+                                </div>
+                                <!-- Silver Package -->
+                                <div class="col-md-6">
+                                    <div style="background:var(--bg-color);border-radius:14px;padding:1rem;border:1px solid var(--border-color);height:100%;">
+                                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+                                            <span style="font-size:1.2rem;">🥈</span>
+                                            <div>
+                                                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:0.95rem;">Silver Package</div>
+                                                <div style="font-size:0.72rem;color:var(--text-muted);">Fixed country · Optimal speed</div>
+                                            </div>
+                                        </div>
+                                        <div class="price-row"><span class="price-vol">2 days</span><span class="price-val">$1.10</span></div>
+                                        <div class="price-row"><span class="price-vol">7 days</span><span class="price-val">$3.00</span></div>
+                                        <div class="price-row"><span class="price-vol">30 days</span><span class="price-val">$10.00</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <a href="register.html" class="cat-cta" style="margin-top:1rem;">Order <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>
 
-    <div class="endpoint-card" style="cursor:default">
-      <div class="endpoint-icon" style="background:rgba(239,68,68,0.15)">💰</div>
-      <div class="endpoint-info">
-        <div class="endpoint-name">Recharge <span class="method post">POST</span></div>
-        <div class="endpoint-path">/api/recharge-request</div>
-      </div>
-      <i class="fas fa-lock endpoint-arrow" style="color:var(--muted)"></i>
-    </div>
+                <!-- Static ISP -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="proxy-category-card cat-static h-100">
+                        <div class="cat-header">
+                            <span class="cat-emoji">🏎️</span>
+                            <div class="cat-name">Static ISP</div>
+                            <div class="cat-desc">Fixed private IPv4, unlimited traffic, high speed</div>
+                        </div>
+                        <div class="cat-body">
+                            <span class="cat-badge badge-manual">⚙️ Manual delivery</span>
+                            <ul class="spec-list">
+                                <li><span class="spec-icon"><i class="fas fa-lock"></i></span><span><strong>Type:</strong> Static private IPv4</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-plug"></i></span><span><strong>Protocol:</strong> HTTP / SOCKS5</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-infinity"></i></span><span><strong>Traffic:</strong> Unlimited</span></li>
+                                <li><span class="spec-icon"><i class="fas fa-calendar-alt"></i></span><span><strong>Duration:</strong> 30 days</span></li>
+                            </ul>
+                            <div style="margin-bottom:8px;">
+                                <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Available countries</div>
+                                <div class="countries-grid">
+                                    <span class="country-tag">🇺🇸 USA</span>
+                                    <span class="country-tag">🇳🇱 Netherlands</span>
+                                    <span class="country-tag">🇩🇪 Germany</span>
+                                    <span class="country-tag">🇬🇧 UK</span>
+                                    <span class="country-tag">🇮🇹 Italy</span>
+                                    <span class="country-tag">🇵🇱 Poland</span>
+                                    <span class="country-tag">🇫🇷 France</span>
+                                    <span class="country-tag">🇺🇦 Ukraine</span>
+                                    <span class="country-tag">🇪🇸 Spain</span>
+                                    <span class="country-tag">🇨🇭 Switzerland</span>
+                                    <span class="country-tag">🇸🇪 Sweden</span>
+                                    <span class="country-tag">🇫🇮 Finland</span>
+                                    <span class="country-tag">🇷🇺 Russia</span>
+                                    <span class="country-tag">🇹🇷 Turkey</span>
+                                    <span class="country-tag">🇰🇿 Kazakhstan</span>
+                                </div>
+                            </div>
+                            <hr class="card-divider">
+                            <div class="price-row"><span class="price-vol">1–24 IPs</span><span class="price-val">$3.20 / IP</span></div>
+                            <div class="price-row"><span class="price-vol">25–49 IPs</span><span class="price-val">$3.00 / IP</span></div>
+                            <div class="price-row"><span class="price-vol">50–99 IPs</span><span class="price-val">$2.90 / IP</span></div>
+                            <div class="price-row"><span class="price-vol">100+ IPs</span><span class="price-val">$2.80 / IP</span></div>
+                            <a href="register.html" class="cat-cta">Order <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                    </div>
+                </div>
 
-  </div>
+                <!-- Info card -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="h-100 d-flex flex-column justify-content-center p-4" style="background:var(--card-bg);border:1px solid var(--border-color);border-radius:24px;">
+                        <div style="font-size:2rem;margin-bottom:1rem;">✅</div>
+                        <h4 style="font-family:'Syne',sans-serif;font-weight:800;">No hidden fees</h4>
+                        <p class="text-muted" style="font-size:0.9rem;line-height:1.6;margin:1rem 0;">Top up your balance, order the proxy type you need. Our team processes your request and delivers your access quickly.</p>
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            <div style="display:flex;align-items:center;gap:10px;font-size:0.85rem;">
+                                <i class="fas fa-check text-success"></i> Secure payment
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;font-size:0.85rem;">
+                                <i class="fas fa-check text-success"></i> Responsive 24/7 support
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;font-size:0.85rem;">
+                                <i class="fas fa-check text-success"></i> Satisfaction guaranteed
+                            </div>
+                        </div>
+                        <a href="register.html" class="btn btn-primary mt-4 py-2" style="border-radius:12px;font-weight:700;">Create account →</a>
+                    </div>
+                </div>
 
-  <div class="footer">
-    Built for <span>NRPROXY</span> — All rights reserved &copy; <span id="year"></span>
-  </div>
-</div>
+            </div>
+        </div>
+    </section>
 
-<script>
-  // Live clock
-  function updateTime() {
-    const now = new Date();
-    document.getElementById('live-time').textContent =
-      now.toLocaleTimeString('en-US', { hour12: false });
-  }
-  setInterval(updateTime, 1000);
-  updateTime();
+    <!-- Features -->
+    <section style="padding: 5rem 0; background: var(--bg-color);">
+        <div class="container">
+            <div class="text-center mb-5">
+                <div class="section-eyebrow">Why choose us</div>
+                <h2 class="section-title" data-i18n="features_title">Why Choose Us?</h2>
+            </div>
+            <div class="feature-strip">
+                <div class="feature-item">
+                    <div class="fi-icon"><i class="fas fa-bolt"></i></div>
+                    <div>
+                        <div class="fi-title">Ultra Fast</div>
+                        <div class="fi-desc">Optimized servers for maximum speed and minimal latency</div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="fi-icon" style="background:linear-gradient(135deg,#10b981,#059669)"><i class="fas fa-shield-alt"></i></div>
+                    <div>
+                        <div class="fi-title">100% Anonymous</div>
+                        <div class="fi-desc">Your data protected, zero logs, total privacy</div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="fi-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)"><i class="fas fa-globe-americas"></i></div>
+                    <div>
+                        <div class="fi-title">50+ Countries</div>
+                        <div class="fi-desc">Global access with IPs in dozens of countries</div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <div class="fi-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626)"><i class="fas fa-headset"></i></div>
+                    <div>
+                        <div class="fi-title">24/7 Support</div>
+                        <div class="fi-desc">Our team is available at all times to assist you</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-  // Year
-  document.getElementById('year').textContent = new Date().getFullYear();
+    <!-- CTA Banner -->
+    <section style="padding: 5rem 0;">
+        <div class="container">
+            <div class="cta-banner">
+                <h2>Ready to get started?</h2>
+                <p>Create your account in 30 seconds, top up your balance, and order your proxies instantly.</p>
+                <a href="register.html" class="btn-hero btn-hero-primary" style="font-size:1rem;">
+                    <span data-i18n="idx_cta_btn">Start Now</span> <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
 
-  // Try to load stats (needs admin token — will silently fail if not logged in)
-  async function loadStats() {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    try {
-      const r = await fetch('/api/admin/stats', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      if (!r.ok) return;
-      const d = await r.json();
-      document.getElementById('stat-users').textContent = d.totalUsers ?? '—';
-      document.getElementById('stat-proxies').textContent = d.totalProxies ?? '—';
-      document.getElementById('stat-revenue').textContent = d.totalRevenue != null
-        ? '$' + Number(d.totalRevenue).toFixed(0) : '—';
-    } catch(e) {}
-  }
-  loadStats();
-</script>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <div class="mb-3">
+                <span class="brand-name-color fw-bold" style="font-family:'Syne',sans-serif;font-size:1.2rem;" data-i18n="brand_name">NRPROXY</span>
+            </div>
+            <p class="text-muted mb-0" style="font-size:0.85rem;">
+                &copy; 2025 <span data-i18n="brand_name">NRPROXY</span>. <span data-i18n="footer_rights">All rights reserved.</span>
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleCountries(id) {
+            const el = document.getElementById(id);
+            const iconId = id + '-icon';
+            const icon = document.getElementById(iconId);
+            el.classList.toggle('open');
+            if (icon) icon.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
+        }
+    </script>
+    <script src="js/theme-lang.js"></script>
+    <script src="js/tawk.js"></script>
 </body>
 </html>
