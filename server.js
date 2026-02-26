@@ -876,14 +876,11 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     }
 
     // Préparer les données pour l'API externe
-    // Convert duration (stored as fractional days) to integer hours for the external API
-    const durationDays = parseFloat(duration);
-    const durationHours = Math.round(durationDays * 24); // e.g. 0.0833 → 2h, 0.5 → 12h, 1 → 24h
     const proxyData = {
       parent_proxy_id,
       package_id: parseInt(package_id),
       protocol,
-      duration: durationHours,
+      duration: parseFloat(duration),
       username: username.toLowerCase(), // ✅ Force minuscules
       password: password.toLowerCase()  // ✅ Force minuscules
     };
@@ -962,6 +959,31 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     res.status(error.response?.status || 500).json({ 
       error: error.response?.data?.message || error.message 
     });
+  }
+});
+
+app.put('/api/proxies/:id/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword) return res.status(400).json({ error: 'Nouveau mot de passe requis' });
+
+    const proxy = await ProxyPurchase.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!proxy) return res.status(404).json({ error: 'Proxy non trouvé' });
+
+    const token = await getAuthToken();
+    const apiResponse = await axios.put(
+      `${API_BASE_URL}/proxies/${proxy.proxyId}`,
+      { parent_proxy_id: proxy.parentProxyId || undefined, protocol: (proxy.protocol || 'http').toLowerCase().replace('socks5','socks'), password: newPassword },
+      { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+    ).then(r => r.data);
+
+    proxy.password = newPassword;
+    await proxy.save();
+
+    res.json({ success: true, message: 'Mot de passe mis à jour ✓' });
+  } catch (error) {
+    const msg = error.response?.data?.message || error.message;
+    res.status(error.response?.status || 500).json({ error: msg });
   }
 });
 
