@@ -1311,8 +1311,8 @@ app.post('/api/recharge-request', authMiddleware, async (req, res) => {
   try {
     const { amount, faucetpayUsername } = req.body;
 
-    if (!amount || amount < 0.5) {
-      return res.status(400).json({ error: 'Montant minimum : 0.50$' });
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Montant invalide.' });
     }
     if (!faucetpayUsername) {
       return res.status(400).json({ error: 'FaucetPay username required' });
