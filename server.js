@@ -876,11 +876,14 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     }
 
     // Préparer les données pour l'API externe
+    // Convert duration (stored as fractional days) to integer hours for the external API
+    const durationDays = parseFloat(duration);
+    const durationHours = Math.round(durationDays * 24); // e.g. 0.0833 → 2h, 0.5 → 12h, 1 → 24h
     const proxyData = {
       parent_proxy_id,
       package_id: parseInt(package_id),
       protocol,
-      duration: parseFloat(duration),
+      duration: durationHours,
       username: username.toLowerCase(), // ✅ Force minuscules
       password: password.toLowerCase()  // ✅ Force minuscules
     };
@@ -1311,8 +1314,8 @@ app.post('/api/recharge-request', authMiddleware, async (req, res) => {
   try {
     const { amount, faucetpayUsername } = req.body;
 
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ error: 'Montant invalide.' });
+    if (!amount || amount < 0.5) {
+      return res.status(400).json({ error: 'Montant minimum : 0.50$' });
     }
     if (!faucetpayUsername) {
       return res.status(400).json({ error: 'FaucetPay username required' });
