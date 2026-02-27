@@ -876,11 +876,20 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     }
 
     // Préparer les données pour l'API externe
+    // API format: >=1 = days, <1 = hours/100 (doc: 2h=0.02, 12h=0.12)
+    const _dur = parseFloat(duration);
+    let apiDuration;
+    if (_dur >= 1) {
+      apiDuration = _dur; // 1, 3, 7, 15, 30 days → as-is
+    } else {
+      const hours = Math.round(_dur * 24); // 0.0833→2h, 0.125→3h, 0.5→12h
+      apiDuration = parseFloat((hours / 100).toFixed(4)); // 2→0.02, 3→0.03, 12→0.12
+    }
     const proxyData = {
       parent_proxy_id,
       package_id: parseInt(package_id),
       protocol,
-      duration: parseFloat(duration),
+      duration: apiDuration,
       username: username.toLowerCase(), // ✅ Force minuscules
       password: password.toLowerCase()  // ✅ Force minuscules
     };
@@ -959,31 +968,6 @@ app.post('/api/create-proxy', authMiddleware, async (req, res) => {
     res.status(error.response?.status || 500).json({ 
       error: error.response?.data?.message || error.message 
     });
-  }
-});
-
-app.put('/api/proxies/:id/change-password', authMiddleware, async (req, res) => {
-  try {
-    const { newPassword } = req.body;
-    if (!newPassword) return res.status(400).json({ error: 'Nouveau mot de passe requis' });
-
-    const proxy = await ProxyPurchase.findOne({ _id: req.params.id, userId: req.user._id });
-    if (!proxy) return res.status(404).json({ error: 'Proxy non trouvé' });
-
-    const token = await getAuthToken();
-    const apiResponse = await axios.put(
-      `${API_BASE_URL}/proxies/${proxy.proxyId}`,
-      { parent_proxy_id: proxy.parentProxyId || undefined, protocol: (proxy.protocol || 'http').toLowerCase().replace('socks5','socks'), password: newPassword },
-      { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
-    ).then(r => r.data);
-
-    proxy.password = newPassword;
-    await proxy.save();
-
-    res.json({ success: true, message: 'Mot de passe mis à jour ✓' });
-  } catch (error) {
-    const msg = error.response?.data?.message || error.message;
-    res.status(error.response?.status || 500).json({ error: msg });
   }
 });
 
@@ -1336,8 +1320,8 @@ app.post('/api/recharge-request', authMiddleware, async (req, res) => {
   try {
     const { amount, faucetpayUsername } = req.body;
 
-    if (!amount || amount < 0.5) {
-      return res.status(400).json({ error: 'Montant minimum : 0.50$' });
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Montant invalide.' });
     }
     if (!faucetpayUsername) {
       return res.status(400).json({ error: 'FaucetPay username required' });
@@ -1728,8 +1712,8 @@ app.post('/api/cryptapi/create', authMiddleware, async (req, res) => {
   try {
     const { amount, coin } = req.body;
 
-    if (!amount || amount < 0.5) {
-      return res.status(400).json({ error: 'Montant minimum : $0.50' });
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Montant invalide.' });
     }
 
     const coinInfo = SUPPORTED_COINS[coin];
